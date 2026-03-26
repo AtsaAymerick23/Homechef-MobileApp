@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">HomeChef</string>
+
+    <!-- Auth -->
+    <string name="sign_in">Sign In</string>
+    <string name="sign_up">Sign Up</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="username">Username</string>
+    <string name="continue_with_google">Continue with Google</string>
+    <string name="already_have_account">Already have an account? Sign In</string>
+    <string name="dont_have_account">Don\'t have an account? Sign Up</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_my_recipes">My Recipes</string>
+    <string name="nav_recipe_of_day">Recipe of the Day</string>
+    <string name="nav_about">About Us</string>
+    <string name="nav_events">Events</string>
+    <string name="nav_quiz">Quiz</string>
+    <string name="nav_experience">My Experience</string>
+    <string name="nav_leaderboard">Leaderboard</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Home -->
+    <string name="for_you">For You</string>
+    <string name="explore">Explore</string>
+    <string name="search_hint">Search recipes, regions, difficulty…</string>
+
+    <!-- Meal Detail -->
+    <string name="cook_this">Cook This</string>
+    <string name="written_recipe">Written</string>
+    <string name="video_recipe">Video</string>
+    <string name="ingredients">Ingredients</string>
+    <string name="similar_recipes">Similar Recipes</string>
+    <string name="my_assistant">MyAssistant</string>
+    <string name="people_eating">People eating</string>
+    <string name="times_this_meal">Times this meal</string>
+    <string name="calculate_plan">Calculate Plan</string>
+    <string name="total_cost">Total Cost</string>
+    <string name="total_time">Total Time</string>
+    <string name="generate_shopping_list">Generate Shopping List</string>
+
+    <!-- Points -->
+    <string name="chef_points">ChefPoints</string>
+    <string name="points_earned">+%d ChefPoints earned!</string>
+
+    <!-- Quiz -->
+    <string name="daily_quiz">Daily Quiz</string>
+    <string name="quiz_done_today">Quiz completed for today!</string>
+    <string name="submit_answer">Submit Answer</string>
+    <string name="correct">Correct!</string>
+    <string name="incorrect">Incorrect</string>
+    <string name="quiz_complete">Quiz Complete!</string>
+
+    <!-- Leaderboard -->
+    <string name="leaderboard">Leaderboard</string>
+    <string name="top_chefs">Top Chefs</string>
+
+    <!-- Events -->
+    <string name="upcoming_events">Upcoming Events</string>
+    <string name="past_events">Past Events</string>
+    <string name="submit_entry">Submit Entry</string>
+
+    <!-- Settings -->
+    <string name="profile_picture">Profile Picture</string>
+    <string name="language">Language</string>
+    <string name="logout">Log Out</string>
+    <string name="logout_confirm">Are you sure you want to log out?</string>
+    <string name="save">Save</string>
+
+    <!-- Errors -->
+    <string name="error_generic">Something went wrong. Please try again.</string>
+    <string name="error_network">No internet connection.</string>
+</resources>

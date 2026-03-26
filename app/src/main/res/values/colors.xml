@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#7A3B22</color>
+    <color name="primary_dark">#5A2A1A</color>
+    <color name="accent">#E78A2F</color>
+    <color name="background">#F5EDE3</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="wordmark_home">#9B3615</color>
+    <color name="wordmark_chef">#EAB40D</color>
+    <color name="on_primary">#FFFFFF</color>
+    <color name="on_background">#1C1B1F</color>
+    <color name="error">#BA1A1A</color>
+    <color name="difficulty_easy">#4CAF50</color>
+    <color name="difficulty_medium">#FF9800</color>
+    <color name="difficulty_hard">#F44336</color>
+    <color name="gold">#FFD700</color>
+    <color name="silver">#C0C0C0</color>
+    <color name="bronze">#CD7F32</color>
+</resources>

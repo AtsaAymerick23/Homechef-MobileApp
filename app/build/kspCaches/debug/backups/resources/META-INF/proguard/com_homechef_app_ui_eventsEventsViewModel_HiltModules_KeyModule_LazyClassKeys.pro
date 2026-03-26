@@ -1,0 +1,4 @@
+-keep,allowobfuscation,allowshrinking class com.homechef.app.ui.auth.AuthViewModel
+-keep,allowobfuscation,allowshrinking class com.homechef.app.ui.auth.AuthViewModel
+-keep,allowobfuscation,allowshrinking class com.homechef.app.ui.events.EventsViewModel
+-keep,allowobfuscation,allowshrinking class com.homechef.app.ui.events.EventsViewModel

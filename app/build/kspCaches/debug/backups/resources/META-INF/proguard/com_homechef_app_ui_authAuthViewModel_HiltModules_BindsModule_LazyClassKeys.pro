@@ -1,0 +1,1 @@
+-keep,allowobfuscation,allowshrinking class com.homechef.app.ui.auth.AuthViewModel
