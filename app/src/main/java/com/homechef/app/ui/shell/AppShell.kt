@@ -1,6 +1,7 @@
 package com.homechef.app.ui.shell
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
@@ -49,7 +50,10 @@ fun AppShell(
     val uiState by viewModel.uiState.collectAsState()
     val currentRoute by remember { derivedStateOf { navController.currentBackStackEntry?.destination?.route } }
 
+    var isSidebarVisible by remember { mutableStateOf(true) }
+
     val sidebarItems = listOf(
+        SidebarItem("Home", Icons.Outlined.Timeline, Screen.Home.route),
         SidebarItem("My Recipes", Icons.Outlined.MenuBook, Screen.MyRecipes.route),
         SidebarItem("Recipe of the Day", Icons.Outlined.Today, Screen.RecipeOfTheDay.route),
         SidebarItem("About Us", Icons.Outlined.Info, Screen.AboutUs.route),
@@ -61,118 +65,143 @@ fun AppShell(
     )
 
     Row(modifier = Modifier.fillMaxSize()) {
-        // ── Fixed Left Sidebar ────────────────────────────────────────────────
-        Surface(
-            modifier = Modifier
-                .width(220.dp)
-                .fillMaxHeight(),
-            color = HomePrimaryDark,
-            shadowElevation = 8.dp
+        // ── Collapsible Left Sidebar with Animation ────────────────────────────────
+        AnimatedVisibility(
+            visible = isSidebarVisible,
+            enter = slideInHorizontally(
+                initialOffsetX = { -it },
+                animationSpec = tween(durationMillis = 300)
+            ),
+            exit = slideOutHorizontally(
+                targetOffsetX = { -it },
+                animationSpec = tween(durationMillis = 300)
+            )
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                // App Logo
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(HomePrimary)
-                        .padding(16.dp),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    Text(
-                        text = buildAnnotatedString {
-                            withStyle(SpanStyle(color = HomeWordmarkHome, fontWeight = FontWeight.Black, fontSize = 20.sp)) {
-                                append("Home")
-                            }
-                            withStyle(SpanStyle(color = HomeWordmarkChef, fontWeight = FontWeight.Black, fontSize = 20.sp)) {
-                                append("Chef")
-                            }
-                        }
-                    )
-                }
-
-                // User info
-                if (uiState.user != null) {
+            Surface(
+                modifier = Modifier
+                    .width(220.dp)
+                    .fillMaxHeight(),
+                color = HomePrimaryDark,
+                shadowElevation = 8.dp
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // App Logo with Toggle Button
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .background(HomePrimary)
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        if (uiState.user?.profilePicUrl != null) {
-                            AsyncImage(
-                                model = uiState.user?.profilePicUrl,
-                                contentDescription = "Avatar",
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(HomeAccent),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = uiState.user?.username?.take(1)?.uppercase() ?: "U",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                        Column {
-                            Text(
-                                text = uiState.user?.username ?: "",
-                                color = Color.White,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 13.sp,
-                                maxLines = 1
-                            )
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Filled.Star,
-                                    contentDescription = null,
-                                    tint = HomeWordmarkChef,
-                                    modifier = Modifier.size(12.dp)
-                                )
-                                Spacer(modifier = Modifier.width(2.dp))
-                                Text(
-                                    text = "${uiState.user?.chefPoints ?: 0} pts",
-                                    color = HomeWordmarkChef,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Divider(color = Color.White.copy(alpha = 0.15f), modifier = Modifier.padding(horizontal = 8.dp))
-
-                // Navigation Items
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState())
-                        .padding(vertical = 8.dp)
-                ) {
-                    sidebarItems.forEach { item ->
-                        val isSelected = currentRoute == item.route
-                        SidebarNavItem(
-                            item = item,
-                            isSelected = isSelected,
-                            onClick = {
-                                if (currentRoute != item.route) {
-                                    navController.navigate(item.route) {
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
+                        Text(
+                            text = buildAnnotatedString {
+                                withStyle(SpanStyle(color = HomeWordmarkHome, fontWeight = FontWeight.Black, fontSize = 20.sp)) {
+                                    append("Home")
+                                }
+                                withStyle(SpanStyle(color = HomeWordmarkChef, fontWeight = FontWeight.Black, fontSize = 20.sp)) {
+                                    append("Chef")
                                 }
                             }
                         )
+
+                        IconButton(
+                            onClick = { isSidebarVisible = false },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.ChevronLeft,
+                                contentDescription = "Collapse Sidebar",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    // User info
+                    if (uiState.user != null) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (uiState.user?.profilePicUrl != null) {
+                                AsyncImage(
+                                    model = uiState.user?.profilePicUrl,
+                                    contentDescription = "Avatar",
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(HomeAccent),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = uiState.user?.username?.take(1)?.uppercase() ?: "U",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                            Column {
+                                Text(
+                                    text = uiState.user?.username ?: "",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.sp,
+                                    maxLines = 1
+                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Star,
+                                        contentDescription = null,
+                                        tint = HomeWordmarkChef,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(2.dp))
+                                    Text(
+                                        text = "${uiState.user?.chefPoints ?: 0} pts",
+                                        color = HomeWordmarkChef,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Divider(color = Color.White.copy(alpha = 0.15f), modifier = Modifier.padding(horizontal = 8.dp))
+
+                    // Navigation Items
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState())
+                            .padding(vertical = 8.dp)
+                    ) {
+                        sidebarItems.forEach { item ->
+                            val isSelected = currentRoute == item.route
+                            SidebarNavItem(
+                                item = item,
+                                isSelected = isSelected,
+                                onClick = {
+                                    if (currentRoute != item.route) {
+                                        navController.navigate(item.route) {
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -180,12 +209,14 @@ fun AppShell(
 
         // ── Main Content Area ─────────────────────────────────────────────────
         Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
-            // Header Bar
+            // Header Bar with Expand Button
             AppHeader(
                 uiState = uiState,
                 onSearchQueryChange = { viewModel.onSearch(it) },
                 onLanguageToggle = { viewModel.toggleLanguage() },
-                onAvatarClick = { navController.navigate(Screen.Settings.route) }
+                onAvatarClick = { navController.navigate(Screen.Settings.route) },
+                isSidebarVisible = isSidebarVisible,
+                onToggleSidebar = { isSidebarVisible = !isSidebarVisible }
             )
 
             // Page content
@@ -250,7 +281,9 @@ private fun AppHeader(
     uiState: ShellUiState,
     onSearchQueryChange: (String) -> Unit,
     onLanguageToggle: () -> Unit,
-    onAvatarClick: () -> Unit
+    onAvatarClick: () -> Unit,
+    isSidebarVisible: Boolean,
+    onToggleSidebar: () -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -266,6 +299,16 @@ private fun AppHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Menu Button to Toggle Sidebar
+            IconButton(onClick = onToggleSidebar) {
+                Icon(
+                    if (isSidebarVisible) Icons.Default.MenuOpen else Icons.Default.Menu,
+                    contentDescription = if (isSidebarVisible) "Hide Menu" else "Show Menu",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
             // Search Bar
             OutlinedTextField(
                 value = uiState.searchQuery,

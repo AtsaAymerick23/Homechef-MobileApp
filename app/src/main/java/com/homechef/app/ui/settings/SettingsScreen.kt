@@ -86,7 +86,7 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(language = newLang) }
         viewModelScope.launch { authRepository.updateLanguagePreference(newLang) }
     }
-\
+
     fun uploadProfilePicture(bytes: ByteArray) {
         val userId = authRepository.currentUserId ?: return
         viewModelScope.launch {

@@ -1,5 +1,7 @@
 package com.homechef.app.ui.other
 
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -16,7 +18,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -27,7 +34,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import coil3.compose.AsyncImage
-import com.homechef.app.data.model.Developer
 import com.homechef.app.data.model.Partnership
 import com.homechef.app.data.model.RecipeOfTheDay
 import com.homechef.app.data.model.UserRecipe
@@ -262,7 +268,7 @@ fun RecipeOfTheDayScreen(onViewFullRecipe: (String) -> Unit, viewModel: RecipeOf
                 }
             }
 
-            // Did You Know
+            // Did You K    now
             if (recipe.didYouKnowEn.isNotBlank()) {
                 Card(modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(HomeAccent.copy(0.1f))) {
                     Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -288,69 +294,282 @@ fun RecipeOfTheDayScreen(onViewFullRecipe: (String) -> Unit, viewModel: RecipeOf
 // ═══════════════════════════════════════════════════════════════════════════
 
 private val developers = listOf(
-    Developer("Team Member 1", "Lead Developer", "Full-stack engineer passionate about African cuisine and mobile development."),
-    Developer("Team Member 2", "UI/UX Designer", "Creates beautiful and intuitive interfaces that feel native to Cameroon culture."),
-    Developer("Team Member 3", "Backend Engineer", "Supabase & API specialist keeping HomeChef running smoothly."),
-    Developer("Team Member 4", "ML / Ontology Engineer", "Builds the semantic recipe recommendation engine using OWL/RDF."),
-    Developer("Team Member 5", "Android Developer", "Kotlin expert ensuring the best experience on every Android device."),
-    Developer("Team Member 6", "Content & QA", "Curates authentic Cameroonian recipes and ensures quality."),
+    AboutDeveloper("Tanefo Valentin", "Developer 1", "pic1.png"),
+    AboutDeveloper("Yemeli Tane", "Developer 3", "pic2.png"),
 )
+
+private val features = listOf(
+    Feature(
+        emoji = "🏺",
+        title = "Cultural Preservation",
+        description = "We document traditional recipes that have been passed down through generations, preserving cooking methods and ingredients that are central to Cameroonian cultural identity."
+    ),
+    Feature(
+        emoji = "🌍",
+        title = "Global Community",
+        description = "We connect food enthusiasts from around the world who share a passion for Cameroonian cuisine, creating a community where cultural exchange happens through food."
+    ),
+)
+
+private data class AboutDeveloper(val name: String, val role: String, val photoFileName: String)
+data class Feature(val emoji: String, val title: String, val description: String)
 
 @Composable
 fun AboutScreen() {
-    LazyColumn(modifier = Modifier.fillMaxSize().background(HomeBackground), contentPadding = PaddingValues(bottom = 32.dp)) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(HomeBackground),
+        contentPadding = PaddingValues(bottom = 32.dp)
+    ) {
+
+        // ── Page Title ──────────────────────────────────────────────────────
         item {
-            // Header
-            Box(modifier = Modifier.fillMaxWidth().background(HomePrimary).padding(24.dp), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(buildAnnotatedString {
-                        withStyle(SpanStyle(color = HomeWordmarkHome, fontWeight = FontWeight.Black, fontSize = 36.sp)) { append("Home") }
-                        withStyle(SpanStyle(color = HomeWordmarkChef, fontWeight = FontWeight.Black, fontSize = 36.sp)) { append("Chef") }
-                    })
-                    Text("Version 1.0.0", color = Color.White.copy(0.8f), fontSize = 13.sp)
-                }
-            }
+            Text(
+                text = "About HomeChef",
+                fontWeight = FontWeight.Bold,
+                fontSize = 26.sp,
+                color = HomePrimaryDark,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp)
+            )
         }
 
+        // ── Our Mission Card ────────────────────────────────────────────────
         item {
-            Card(modifier = Modifier.padding(16.dp).fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(HomeSurface)) {
-                Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("🍲 Our Mission", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = HomePrimaryDark)
+            Card(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                    .fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = HomeSurface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     Text(
-                        "HomeChef is a gamified culinary platform celebrating the rich and diverse food culture of Cameroon. We connect people to their roots through recipes, cooking challenges, and community events — making African cuisine accessible to everyone.",
-                        textAlign = TextAlign.Center,
-                        color = Color.DarkGray,
-                        lineHeight = 22.sp,
-                        fontSize = 14.sp
+                        text = "Our Mission",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = HomePrimaryDark
                     )
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                    Text("👋 A warm greeting to our community! May every meal you cook bring joy, culture, and connection.", textAlign = TextAlign.Center, color = HomePrimary, fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                    Text(
+                        text = "HomeChef is dedicated to preserving and promoting Cameroonian culinary traditions by creating a comprehensive digital repository of recipes from all regions of Cameroon.",
+                        fontSize = 14.sp,
+                        color = Color.DarkGray,
+                        lineHeight = 22.sp
+                    )
+                    Text(
+                        text = "We aim to make traditional Cameroonian cooking accessible to everyone, whether you're a Cameroonian living abroad missing the tastes of home, or someone interested in exploring the rich and diverse flavors of Cameroonian cuisine.",
+                        fontSize = 14.sp,
+                        color = Color.DarkGray,
+                        lineHeight = 22.sp
+                    )
                 }
             }
         }
 
-        item {
-            Text("Meet the Team", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = HomePrimaryDark, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+        // ── Feature Cards (Cultural Preservation, Global Community) ─────────
+        items(features) { feature ->
+            FeatureCard(feature = feature)
         }
 
+        // ── Our Team Section ────────────────────────────────────────────────
+        item {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Our Team",
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp,
+                color = HomePrimaryDark,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+        }
+
+        item {
+            Card(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = HomeSurface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Text(
+                    text = "HomeChef was created by a team of Cameroonian food enthusiasts, chefs, and software developers who are passionate about sharing their culinary heritage with the world.",
+                    fontSize = 14.sp,
+                    color = Color.DarkGray,
+                    lineHeight = 22.sp,
+                    modifier = Modifier.padding(20.dp)
+                )
+            }
+        }
+
+        // Developer photo cards
         items(developers) { dev ->
             DeveloperCard(developer = dev)
+        }
+
+        // ── Contact Us Section ──────────────────────────────────────────────
+        item {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Contact Us",
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp,
+                color = HomePrimaryDark,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+        }
+
+        item {
+            Card(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = HomeSurface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        text = "We'd love to hear from you! If you have questions, suggestions, or would like to contribute your own recipes, please reach out to us.",
+                        fontSize = 14.sp,
+                        color = Color.DarkGray,
+                        lineHeight = 22.sp
+                    )
+
+                    // Email row
+                    Card(
+                        shape = RoundedCornerShape(10.dp),
+                        colors = CardDefaults.cardColors(containerColor = HomeBackground)
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Email", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = HomePrimaryDark)
+                            Text("homechefcm@gmail.com", fontSize = 14.sp, color = Color.DarkGray)
+                        }
+                    }
+
+                    // Social Media row
+                    Card(
+                        shape = RoundedCornerShape(10.dp),
+                        colors = CardDefaults.cardColors(containerColor = HomeBackground)
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Social Media", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = HomePrimaryDark)
+                            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                listOf("Instagram", "Facebook", "Twitter").forEach { platform ->
+                                    Text(
+                                        text = platform,
+                                        fontSize = 14.sp,
+                                        color = HomePrimary,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
+// ── Feature Card (emoji + title + description) ───────────────────────────────
 @Composable
-private fun DeveloperCard(developer: Developer) {
-    Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth(), shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(HomeSurface)) {
-        Row(modifier = Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(52.dp).clip(CircleShape).background(HomePrimary), contentAlignment = Alignment.Center) {
-                Text(developer.name.take(2).uppercase(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+private fun FeatureCard(feature: Feature) {
+    Card(
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = HomeSurface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(text = feature.emoji, fontSize = 32.sp)
+            Text(
+                text = feature.title,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                color = HomePrimaryDark
+            )
+            Text(
+                text = feature.description,
+                fontSize = 14.sp,
+                color = Color.DarkGray,
+                lineHeight = 22.sp
+            )
+        }
+    }
+}
+
+// ── Developer Card (photo avatar, centered name + role) ──────────────────────
+@Composable
+private fun DeveloperCard(developer: AboutDeveloper) {
+    val context = LocalContext.current
+
+    // Load pic1.png / pic2.png from res/raw or assets at runtime
+    val painter: Painter = remember(developer.photoFileName) {
+        try {
+            val assetStream = context.assets.open(developer.photoFileName)
+            val bitmap = BitmapFactory.decodeStream(assetStream)
+            BitmapPainter(bitmap.asImageBitmap())
+        } catch (_: Exception) {
+            // Fallback: try res/raw by stripping extension
+            try {
+                val resName = developer.photoFileName.substringBeforeLast(".")
+                val resId = context.resources.getIdentifier(resName, "raw", context.packageName)
+                val stream = context.resources.openRawResource(resId)
+                val bitmap = BitmapFactory.decodeStream(stream)
+                BitmapPainter(bitmap.asImageBitmap())
+            } catch (_: Exception) {
+                BitmapPainter(ImageBitmap(72, 72)) // transparent placeholder
             }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(developer.name, fontWeight = FontWeight.Bold, color = HomePrimaryDark)
-                Text(developer.role, fontSize = 12.sp, color = HomePrimary, fontWeight = FontWeight.SemiBold)
-                Text(developer.bio, fontSize = 12.sp, color = Color.Gray, lineHeight = 18.sp)
-            }
+        }
+    }
+    Card(
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = HomeSurface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 24.dp, horizontal = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Circular photo avatar
+            Image(
+                painter = painter,
+                contentDescription = developer.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(CircleShape)
+            )
+            Text(
+                text = developer.name,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                color = HomePrimaryDark
+            )
+            Text(
+                text = developer.role,
+                fontSize = 13.sp,
+                color = Color.Gray
+            )
         }
     }
 }
