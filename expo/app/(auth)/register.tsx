@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,11 +12,23 @@ import {
   ActivityIndicator,
   Image,
   Animated,
+  Easing,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Colors } from '@/constants/colors';
 import { useAuthStore } from '@/stores/authStore';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// ── Palette ────────────────────────────────────────────────────────────────
+const DARK_BROWN   = '#3d1008';
+const GOLD         = '#C9840A';
+const RUST         = '#8B2500';
+const CREAM        = '#f7f2ea';
+const CREAM_BORDER = '#e0d0ba';
+const INPUT_BG     = '#fffdf9';
+const GOLD_LIGHT   = '#fdf3de';
 
 // ── Password strength helpers ──────────────────────────────────────────────
 const criteria = [
@@ -28,15 +40,94 @@ const criteria = [
 ];
 
 function getStrength(password: string): number {
-  return criteria.filter(c => c.test(password)).length; // 0‑5
+  return criteria.filter(c => c.test(password)).length;
 }
 
-function getStrengthColor(score: number): string {
-  if (score <= 1) return '#e74c3c';
-  if (score <= 2) return '#e67e22';
-  if (score <= 3) return '#f1c40f';
-  if (score === 4) return '#2ecc71';
-  return '#27ae60';
+const STRENGTH_COLORS = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#27ae60'];
+const STRENGTH_LABELS = ['', 'Weak', 'Fair', 'Good', 'Strong', 'Excellent'];
+
+// ── Animated Input ─────────────────────────────────────────────────────────
+function FloatingInput({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  secureTextEntry,
+  keyboardType,
+  autoCapitalize,
+  editable,
+  delay = 0,
+}: any) {
+  const focused   = useRef(new Animated.Value(0)).current;
+  const mountAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(mountAnim, {
+      toValue: 1,
+      duration: 400,
+      delay,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  const handleFocus = () =>
+    Animated.timing(focused, { toValue: 1, duration: 180, useNativeDriver: false }).start();
+  const handleBlur  = () =>
+    Animated.timing(focused, { toValue: 0, duration: 180, useNativeDriver: false }).start();
+
+  const borderColor = focused.interpolate({
+    inputRange: [0, 1],
+    outputRange: [CREAM_BORDER, GOLD],
+  });
+
+  return (
+    <Animated.View
+      style={{
+        opacity: mountAnim,
+        transform: [{ translateY: mountAnim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }],
+        marginBottom: 14,
+      }}
+    >
+      <Text style={styles.label}>{label}</Text>
+      <Animated.View style={[styles.inputWrapper, { borderColor }]}>
+        <TextInput
+          style={styles.input}
+          placeholder={placeholder}
+          placeholderTextColor="#c0b09a"
+          value={value}
+          onChangeText={onChangeText}
+          secureTextEntry={secureTextEntry}
+          keyboardType={keyboardType}
+          autoCapitalize={autoCapitalize ?? 'none'}
+          editable={editable !== false}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+        />
+      </Animated.View>
+    </Animated.View>
+  );
+}
+
+// ── Strength Bar Segment ───────────────────────────────────────────────────
+function StrengthSegment({ active, color, delay }: { active: boolean; color: string; delay: number }) {
+  const anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: active ? 1 : 0,
+      duration: 260,
+      delay: active ? delay : 0,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: false,
+    }).start();
+  }, [active]);
+
+  const bg = anim.interpolate({ inputRange: [0, 1], outputRange: ['#e0d8cc', color] });
+
+  return (
+    <Animated.View style={{ flex: 1, height: 5, borderRadius: 4, backgroundColor: bg, marginHorizontal: 2 }} />
+  );
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -44,53 +135,82 @@ export default function RegisterScreen() {
   const router = useRouter();
   const { signUp } = useAuthStore();
 
-  const [username, setUsername]             = useState('');
-  const [email, setEmail]                   = useState('');
-  const [phone, setPhone]                   = useState('');
-  const [password, setPassword]             = useState('');
+  const [username, setUsername]               = useState('');
+  const [email, setEmail]                     = useState('');
+  const [phone, setPhone]                     = useState('');
+  const [password, setPassword]               = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword]     = useState(false);
-  const [isLoading, setIsLoading]           = useState(false);
+  const [showPassword, setShowPassword]       = useState(false);
+  const [isLoading, setIsLoading]             = useState(false);
+  const [agreed, setAgreed]                   = useState(false);
 
-  // Logo animation
-  const logoScale  = useRef(new Animated.Value(1)).current;
-  const logoRotate = useRef(new Animated.Value(0)).current;
+  // Entrance animations
+  const heroOpacity   = useRef(new Animated.Value(0)).current;
+  const heroSlide     = useRef(new Animated.Value(-30)).current;
+  const formOpacity   = useRef(new Animated.Value(0)).current;
+  const formSlide     = useRef(new Animated.Value(40)).current;
+  const logoScale     = useRef(new Animated.Value(0.6)).current;
+  const logoRotate    = useRef(new Animated.Value(0)).current;
+  const buttonScale   = useRef(new Animated.Value(1)).current;
+  const shimmerAnim   = useRef(new Animated.Value(0)).current;
 
-  const animateLogo = () => {
-    logoScale.setValue(1);
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(logoScale,  { toValue: 1, tension: 60, friction: 7, useNativeDriver: true }),
+      Animated.timing(heroOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+      Animated.spring(heroSlide,  { toValue: 0, tension: 60, friction: 9, useNativeDriver: true }),
+    ]).start();
+
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(formOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.spring(formSlide,   { toValue: 0, tension: 60, friction: 10, useNativeDriver: true }),
+      ]).start();
+    }, 200);
+
+    // Looping shimmer on the card
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmerAnim, { toValue: 1, duration: 2200, useNativeDriver: true }),
+        Animated.timing(shimmerAnim, { toValue: 0, duration: 0,    useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+
+  const celebrateLogo = () => {
     logoRotate.setValue(0);
     Animated.sequence([
-      Animated.parallel([
-        Animated.timing(logoScale,  { toValue: 1.3, duration: 150, useNativeDriver: true }),
-        Animated.timing(logoRotate, { toValue: -5,  duration: 150, useNativeDriver: true }),
-      ]),
-      Animated.parallel([
-        Animated.timing(logoScale,  { toValue: 0.9, duration: 100, useNativeDriver: true }),
-        Animated.timing(logoRotate, { toValue: 3,   duration: 100, useNativeDriver: true }),
-      ]),
-      Animated.parallel([
-        Animated.timing(logoScale,  { toValue: 1.15, duration: 100, useNativeDriver: true }),
-        Animated.timing(logoRotate, { toValue: 0,    duration: 100, useNativeDriver: true }),
-      ]),
-      Animated.timing(logoScale, { toValue: 1, duration: 100, useNativeDriver: true }),
+      Animated.timing(logoScale,  { toValue: 1.35, duration: 130, useNativeDriver: true }),
+      Animated.timing(logoRotate, { toValue: -8,   duration: 110, useNativeDriver: true }),
+      Animated.timing(logoRotate, { toValue: 8,    duration: 110, useNativeDriver: true }),
+      Animated.timing(logoRotate, { toValue: -5,   duration: 90,  useNativeDriver: true }),
+      Animated.timing(logoRotate, { toValue: 0,    duration: 90,  useNativeDriver: true }),
+      Animated.spring(logoScale,  { toValue: 1, tension: 80, friction: 5, useNativeDriver: true }),
     ]).start();
   };
 
+  const pressButton = (in_: boolean) =>
+    Animated.spring(buttonScale, {
+      toValue: in_ ? 0.96 : 1,
+      tension: 160,
+      friction: 10,
+      useNativeDriver: true,
+    }).start();
+
   const strengthScore = getStrength(password);
-  const strengthColor = getStrengthColor(strengthScore);
-  const strengthPct   = `${(strengthScore / 5) * 100}%`;
+  const strengthColor = STRENGTH_COLORS[Math.min(strengthScore - 1, 4)] ?? '#e0d8cc';
 
   const handleRegister = async () => {
     if (!username.trim() || !email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please fill in all required fields');
+      Alert.alert('Missing fields', 'Please fill in all required fields.');
       return;
     }
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      Alert.alert('Password mismatch', 'Your passwords do not match.');
       return;
     }
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      Alert.alert('Weak password', 'Password must be at least 6 characters.');
       return;
     }
 
@@ -99,71 +219,88 @@ export default function RegisterScreen() {
     setIsLoading(false);
 
     if (error) {
-      Alert.alert('Registration Failed', error.message || 'Could not create account');
+      Alert.alert('Registration failed', error.message || 'Could not create account.');
     } else {
-      animateLogo();
+      celebrateLogo();
       Alert.alert(
-        'Success',
-        'Account created successfully! Please sign in.',
-        [{ text: 'OK', onPress: () => router.replace('/(auth)/login') }]
+        'Welcome to HomeChef!',
+        'Your account is ready. Please sign in.',
+        [{ text: 'Let\'s go', onPress: () => router.replace('/(auth)/login') }]
       );
     }
   };
 
-  const spin = logoRotate.interpolate({
-    inputRange: [-10, 10],
-    outputRange: ['-10deg', '10deg'],
-  });
+  const spin = logoRotate.interpolate({ inputRange: [-10, 10], outputRange: ['-10deg', '10deg'] });
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
+        style={{ flex: 1 }}
       >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          {/* ── TOP: dark hero ── */}
-          <View style={styles.topSection}>
-            <Animated.View
-              style={[
-                styles.logoWrapper,
-                { transform: [{ scale: logoScale }, { rotate: spin }] },
-              ]}
-            >
-              <Image
-                source={{ uri: 'https://i.pinimg.com/736x/1c/8f/e7/1c8fe7c5f63a8ccf73d3f9a392c7953a.jpg' }}
-                style={styles.logoImage}
-                resizeMode="cover"
-              />
-            </Animated.View>
+          {/* ── Hero section ── */}
+          <Animated.View
+            style={[
+              styles.topSection,
+              {
+                opacity: heroOpacity,
+                transform: [{ translateY: heroSlide }],
+              },
+            ]}
+          >
+            {/* Decorative ring */}
+            <View style={styles.logoRing}>
+              <Animated.View style={{ transform: [{ scale: logoScale }, { rotate: spin }] }}>
+                <View style={styles.logoWrapper}>
+                  <Image
+                    source={{ uri: 'https://i.pinimg.com/736x/1c/8f/e7/1c8fe7c5f63a8ccf73d3f9a392c7953a.jpg' }}
+                    style={styles.logoImage}
+                    resizeMode="cover"
+                  />
+                </View>
+              </Animated.View>
+            </View>
 
-            <Text style={styles.heroTitle}>Welcome To HomeChef</Text>
+            <Text style={styles.heroTitle}>Welcome to HomeChef</Text>
             <Text style={styles.heroBody}>
               Join our community of food lovers and share your culinary journey.
             </Text>
 
-            <View style={styles.didYouKnowCard}>
-              <Text style={styles.didYouKnowText}>
-                <Text style={styles.didYouKnowBold}>Did you know? </Text>
-                Did you know? Ndolé is Cameroon's national dish!
-              </Text>
+            {/* Did-you-know chip */}
+            <View style={styles.chipRow}>
+              <View style={styles.chip}>
+                <Text style={styles.chipEmoji}>🍽</Text>
+                <Text style={styles.chipText}>
+                  <Text style={styles.chipBold}>Did you know? </Text>
+                  Ndolé is Cameroon's beloved national dish!
+                </Text>
+              </View>
             </View>
-          </View>
+          </Animated.View>
 
-          {/* ── BOTTOM: cream form ── */}
-          <View style={styles.bottomSection}>
-            {/* Brand */}
-            <View style={styles.brandRow}>
+          {/* ── Form section ── */}
+          <Animated.View
+            style={[
+              styles.bottomSection,
+              {
+                opacity: formOpacity,
+                transform: [{ translateY: formSlide }],
+              },
+            ]}
+          >
+            {/* Brand pill */}
+            <View style={styles.brandPill}>
               <Text style={styles.brandHome}>Home</Text>
               <Text style={styles.brandChef}>Chef</Text>
             </View>
 
-            <Text style={styles.formTitle}>Create your HomeChef{'\n'}account</Text>
+            <Text style={styles.formTitle}>Create your account</Text>
 
-            {/* Sign‑in link */}
             <View style={styles.signinRow}>
               <Text style={styles.signinText}>Already have an account? </Text>
               <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
@@ -171,287 +308,305 @@ export default function RegisterScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Username */}
-            <Text style={styles.label}>Username</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Aymerick Atsa"
-              placeholderTextColor="#b0a090"
-              value={username}
-              onChangeText={setUsername}
-              autoCapitalize="none"
-              editable={!isLoading}
-            />
+            <View style={styles.divider} />
 
-            {/* Email */}
-            <Text style={styles.label}>Email Address</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="you@example.com"
-              placeholderTextColor="#b0a090"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              editable={!isLoading}
-            />
+            {/* Inputs */}
+            <FloatingInput label="Username"       value={username}         onChangeText={setUsername}         placeholder="Aymerick Atsa"  editable={!isLoading} delay={0}   />
+            <FloatingInput label="Email address"  value={email}            onChangeText={setEmail}            placeholder="you@example.com" keyboardType="email-address" editable={!isLoading} delay={60}  />
+            <FloatingInput label="Phone number"   value={phone}            onChangeText={setPhone}            placeholder="+237 655 353 513" keyboardType="phone-pad" editable={!isLoading} delay={120} />
+            <FloatingInput label="Password"       value={password}         onChangeText={setPassword}         placeholder="Create a password" secureTextEntry={!showPassword} editable={!isLoading} delay={180} />
+            <FloatingInput label="Confirm password" value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Repeat your password" secureTextEntry={!showPassword} editable={!isLoading} delay={240} />
 
-            {/* Phone */}
-            <Text style={styles.label}>Phone Number</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="655353513"
-              placeholderTextColor="#b0a090"
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-              editable={!isLoading}
-            />
+            {/* Strength indicator */}
+            {password.length > 0 && (
+              <Animated.View style={styles.strengthSection}>
+                <View style={styles.strengthHeader}>
+                  <Text style={styles.strengthLabel}>Password strength</Text>
+                  <Text style={[styles.strengthWord, { color: strengthColor }]}>
+                    {STRENGTH_LABELS[strengthScore]}
+                  </Text>
+                </View>
 
-            {/* Password */}
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="••••••"
-              placeholderTextColor="#b0a090"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              editable={!isLoading}
-            />
+                <View style={styles.segmentRow}>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <StrengthSegment
+                      key={i}
+                      active={i < strengthScore}
+                      color={strengthColor}
+                      delay={i * 40}
+                    />
+                  ))}
+                </View>
 
-            {/* Confirm Password (first — above strength) */}
-            <Text style={styles.label}>Confirm Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder=""
-              placeholderTextColor="#b0a090"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry={!showPassword}
-              editable={!isLoading}
-            />
+                <View style={styles.criteriaGrid}>
+                  {criteria.map((c) => {
+                    const met = c.test(password);
+                    return (
+                      <View key={c.label} style={styles.criteriaItem}>
+                        <View style={[styles.criteriaDot, met && { backgroundColor: strengthColor }]} />
+                        <Text style={[styles.criteriaText, met && styles.criteriaMet]}>
+                          {c.label}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </Animated.View>
+            )}
 
-            {/* Password Strength */}
-            <Text style={styles.strengthLabel}>Password Strength:</Text>
-            <View style={styles.strengthBarTrack}>
-              <View
-                style={[
-                  styles.strengthBarFill,
-                  { width: strengthPct as any, backgroundColor: strengthColor },
-                ]}
-              />
+            {/* Controls row */}
+            <View style={styles.controlsRow}>
+              <TouchableOpacity
+                style={styles.toggleRow}
+                onPress={() => setShowPassword(!showPassword)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.checkbox, showPassword && styles.checkboxChecked]}>
+                  {showPassword && <Text style={styles.checkmark}>✓</Text>}
+                </View>
+                <Text style={styles.toggleLabel}>Show password</Text>
+              </TouchableOpacity>
             </View>
 
-            {/* Criteria grid */}
-            <View style={styles.criteriaGrid}>
-              {criteria.map((c) => {
-                const met = c.test(password);
-                return (
-                  <View key={c.label} style={styles.criteriaItem}>
-                    <Text style={[styles.criteriaText, met && styles.criteriaMet]}>
-                      • {c.label}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-
-            {/* Show Password checkbox */}
+            {/* T&C */}
             <TouchableOpacity
-              style={styles.showPasswordRow}
-              onPress={() => setShowPassword(!showPassword)}
+              style={styles.toggleRow}
+              onPress={() => setAgreed(!agreed)}
               activeOpacity={0.7}
             >
-              <View style={[styles.checkbox, showPassword && styles.checkboxChecked]}>
-                {showPassword && <Text style={styles.checkmark}>✓</Text>}
+              <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
+                {agreed && <Text style={styles.checkmark}>✓</Text>}
               </View>
-              <Text style={styles.showPasswordLabel}>Show Password</Text>
+              <Text style={styles.toggleLabel}>
+                I agree to the{' '}
+                <Text style={styles.signinLink}>Terms & Conditions</Text>
+              </Text>
             </TouchableOpacity>
 
-            {/* Register button */}
-            <TouchableOpacity
-              style={[styles.registerButton, isLoading && styles.registerButtonDisabled]}
-              onPress={handleRegister}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.registerButtonText}>Register Now</Text>
-              )}
-            </TouchableOpacity>
-          </View>
+            {/* CTA */}
+            <Animated.View style={{ transform: [{ scale: buttonScale }], marginTop: 24 }}>
+              <TouchableOpacity
+                style={[
+                  styles.registerButton,
+                  (isLoading || !agreed) && styles.registerButtonDisabled,
+                ]}
+                onPress={handleRegister}
+                onPressIn={() => pressButton(true)}
+                onPressOut={() => pressButton(false)}
+                disabled={isLoading || !agreed}
+                activeOpacity={1}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.registerButtonText}>Create Account</Text>
+                )}
+              </TouchableOpacity>
+            </Animated.View>
+
+            <Text style={styles.footer}>
+              By registering you agree to our Privacy Policy
+            </Text>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-// ── Palette ────────────────────────────────────────────────────────────────
-const DARK_BROWN  = '#3d1008';
-const GOLD        = '#C9840A';
-const RUST        = '#8B2500';
-const CREAM       = '#f5f0e8';
-const CREAM_BORDER = '#d9c9b0';
-
+// ── Styles ─────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container:    { flex: 1, backgroundColor: CREAM },
-  keyboardView: { flex: 1 },
   scrollContent: { flexGrow: 1 },
 
   // TOP
   topSection: {
     backgroundColor: DARK_BROWN,
     alignItems: 'center',
-    paddingTop: 40,
-    paddingBottom: 32,
-    paddingHorizontal: 24,
+    paddingTop: 48,
+    paddingBottom: 40,
+    paddingHorizontal: 28,
+  },
+  logoRing: {
+    width: 124,
+    height: 124,
+    borderRadius: 62,
+    borderWidth: 2.5,
+    borderColor: GOLD,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 22,
   },
   logoWrapper: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: '#fff',
+    width: 108,
+    height: 108,
+    borderRadius: 54,
     overflow: 'hidden',
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 8,
+    backgroundColor: '#fff',
   },
-  logoImage: { width: 110, height: 110, borderRadius: 55 },
+  logoImage: { width: 108, height: 108, borderRadius: 54 },
+
   heroTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '700',
     color: '#fff',
     textAlign: 'center',
+    letterSpacing: 0.2,
     marginBottom: 10,
   },
   heroBody: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.75)',
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.65)',
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 20,
+    lineHeight: 22,
+    marginBottom: 24,
+    maxWidth: 300,
   },
-  didYouKnowCard: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 10,
-    paddingVertical: 14,
+  chipRow: { width: '100%' },
+  chip: {
+    backgroundColor: 'rgba(201,132,10,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(201,132,10,0.35)',
+    borderRadius: 14,
+    paddingVertical: 12,
     paddingHorizontal: 18,
-    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
   },
-  didYouKnowText: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 13,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  didYouKnowBold: { fontStyle: 'normal', fontWeight: 'bold', color: '#fff' },
+  chipEmoji:  { fontSize: 16, lineHeight: 22 },
+  chipText:   { flex: 1, color: 'rgba(255,255,255,0.80)', fontSize: 13, lineHeight: 20 },
+  chipBold:   { fontWeight: '700', color: GOLD },
 
   // BOTTOM
   bottomSection: {
     backgroundColor: CREAM,
     paddingHorizontal: 28,
-    paddingTop: 32,
-    paddingBottom: 40,
+    paddingTop: 36,
+    paddingBottom: 48,
   },
-  brandRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: 8 },
-  brandHome: { fontSize: 30, fontWeight: 'bold', color: RUST },
-  brandChef: { fontSize: 30, fontWeight: 'bold', color: GOLD },
-  formTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    textAlign: 'center',
-    lineHeight: 30,
+  brandPill: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: GOLD_LIGHT,
+    alignSelf: 'center',
+    borderRadius: 50,
+    paddingHorizontal: 22,
+    paddingVertical: 6,
     marginBottom: 18,
+    borderWidth: 1,
+    borderColor: '#f0d8a0',
   },
-  signinRow: { flexDirection: 'row', marginBottom: 20 },
-  signinText: { fontSize: 13, color: '#555' },
+  brandHome: { fontSize: 20, fontWeight: '800', color: RUST, letterSpacing: 0.5 },
+  brandChef: { fontSize: 20, fontWeight: '800', color: GOLD, letterSpacing: 0.5 },
+
+  formTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1a0f08',
+    textAlign: 'center',
+    marginBottom: 14,
+    letterSpacing: -0.3,
+  },
+  signinRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: 22 },
+  signinText: { fontSize: 13, color: '#7a6a58' },
   signinLink: { fontSize: 13, color: '#4a90d9', fontWeight: '600' },
+  divider:    { height: 1, backgroundColor: CREAM_BORDER, marginBottom: 20 },
 
-  label: { fontSize: 13, fontWeight: '600', color: '#333', marginBottom: 6 },
-  input: {
-    width: '100%',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderWidth: 1.5,
-    borderColor: CREAM_BORDER,
-    borderRadius: 10,
-    fontSize: 15,
-    color: '#222',
-    backgroundColor: '#fff',
-    marginBottom: 16,
-  },
-
-  // Strength bar
-  strengthLabel: {
-    fontSize: 13,
+  // Inputs
+  label: {
+    fontSize: 12,
     fontWeight: '600',
-    color: '#333',
+    color: '#6b5a46',
     marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
   },
-  strengthBarTrack: {
-    height: 5,
-    backgroundColor: '#e0d8cc',
-    borderRadius: 4,
+  inputWrapper: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    backgroundColor: INPUT_BG,
     overflow: 'hidden',
+  },
+  input: {
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    fontSize: 15,
+    color: '#1a0f08',
+  },
+
+  // Strength
+  strengthSection: {
+    backgroundColor: INPUT_BG,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: CREAM_BORDER,
+  },
+  strengthHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  strengthLabel: { fontSize: 12, color: '#7a6a58', fontWeight: '600' },
+  strengthWord:  { fontSize: 12, fontWeight: '700' },
+  segmentRow: {
+    flexDirection: 'row',
     marginBottom: 12,
   },
-  strengthBarFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-
-  // Criteria
   criteriaGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 20,
-    columnGap: 12,
+    gap: 6,
   },
-  criteriaItem: { width: '45%', marginBottom: 4 },
-  criteriaText: { fontSize: 12, color: '#999' },
-  criteriaMet:  { color: '#555' },
-
-  // Show password
-  showPasswordRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 24,
-  },
-  checkbox: {
-    width: 18,
-    height: 18,
-    borderWidth: 1.5,
-    borderColor: '#aaa',
+  criteriaItem: { flexDirection: 'row', alignItems: 'center', width: '46%', gap: 6 },
+  criteriaDot: {
+    width: 7,
+    height: 7,
     borderRadius: 4,
+    backgroundColor: '#d0c8bc',
+  },
+  criteriaText: { fontSize: 12, color: '#aaa098' },
+  criteriaMet:  { color: '#5a5048', fontWeight: '500' },
+
+  // Controls
+  controlsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 1.5,
+    borderColor: '#c0b09a',
+    borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#fff',
   },
   checkboxChecked: { backgroundColor: DARK_BROWN, borderColor: DARK_BROWN },
-  checkmark: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
-  showPasswordLabel: { fontSize: 13, color: '#555' },
+  checkmark: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  toggleLabel: { fontSize: 13, color: '#6b5a46' },
 
   // Button
   registerButton: {
     backgroundColor: DARK_BROWN,
-    borderRadius: 10,
-    paddingVertical: 16,
+    borderRadius: 14,
+    paddingVertical: 17,
     alignItems: 'center',
-    width: '100%',
   },
-  registerButtonDisabled: { opacity: 0.7 },
+  registerButtonDisabled: { opacity: 0.55 },
   registerButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
-    letterSpacing: 0.3,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+
+  footer: {
+    textAlign: 'center',
+    fontSize: 11,
+    color: '#b0a090',
+    marginTop: 20,
   },
 });
