@@ -35,6 +35,8 @@ export interface UserRecipe {
   ingredients: string[];
   instructions: string[];
   createdAt: string;
+
+  
 }
 
 export interface CookingHistory {
@@ -56,7 +58,7 @@ export const meals: Meal[] = [
     region: 'Littoral',
     difficulty: 'Medium',
     description: 'A beloved Cameroonian dish made with bitterleaf greens, peanuts, and crayfish. Often called the national dish of Cameroon.',
-    image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800',
+    image: 'https://images.squarespace-cdn.com/content/v1/5e04d1c138bd0a5d714cea2b/1615411039884-HLYF8GGIP67LFLCYN21D/Ndole-cameroon+cuisine-kengs+kitchen2.jpg',
     videoUrl: 'https://example.com/ndole-video',
     prepTime: 30,
     cookTime: 45,
@@ -91,7 +93,7 @@ export const meals: Meal[] = [
     region: 'Centre',
     difficulty: 'Medium',
     description: 'A sumptuous dish of fried plantains and chicken, typically served to high-ranking officials (DG = Directeur Général).',
-    image: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=800',
+    image: 'https://i0.wp.com/www.yummymedley.com/wp-content/uploads/2017/06/01-Cameroonian-Poulet-DG-Top-Shot.jpg?w=750&ssl=1/',
     videoUrl: 'https://example.com/poulet-dg-video',
     prepTime: 25,
     cookTime: 40,
@@ -127,7 +129,7 @@ export const meals: Meal[] = [
     region: 'Littoral',
     difficulty: 'Easy',
     description: 'Traditional steamed bean pudding made from black-eyed peas, wrapped and cooked in banana leaves.',
-    image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=800',
+    image: 'https://www.africanbites.com/wp-content/uploads/2025/08/Koki-Beans-1.jpg',
     videoUrl: 'https://example.com/koki-video',
     prepTime: 45,
     cookTime: 60,
@@ -159,7 +161,7 @@ export const meals: Meal[] = [
     region: 'South West',
     difficulty: 'Hard',
     description: 'A hearty soup from the South West region made with finely sliced eru leaves, waterleaf, and assorted meats.',
-    image: 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=800',
+    image: 'https://foodinvitecameroon.com/wp-content/uploads/2022/01/Eru.-600x525.png',
     videoUrl: 'https://example.com/eru-video',
     prepTime: 40,
     cookTime: 50,
@@ -192,7 +194,7 @@ export const meals: Meal[] = [
     region: 'North West',
     difficulty: 'Hard',
     description: 'A traditional dish from the North West, featuring pounded cocoyams served with a rich yellow soup.',
-    image: 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=800',
+    image: 'https://theafrikanstore.com/cdn/shop/articles/achu_soup_900x@2x.jpg?v=1694519397',
     videoUrl: 'https://example.com/achu-video',
     prepTime: 60,
     cookTime: 90,
@@ -225,7 +227,7 @@ export const meals: Meal[] = [
     region: 'Centre',
     difficulty: 'Easy',
     description: 'A simple yet delicious dish of mashed corn and beans, popular in the Centre region.',
-    image: 'https://images.unsplash.com/photo-1547496502-ffa2768d6cca?w=800',
+    image: 'https://epiceries-staffsas.com/cdn/shop/files/Platdesanga_1.jpg?v=1707944892&width=600',
     videoUrl: 'https://example.com/sanga-video',
     prepTime: 15,
     cookTime: 45,
@@ -257,7 +259,7 @@ export const meals: Meal[] = [
     region: 'Littoral',
     difficulty: 'Medium',
     description: 'A distinctive black soup made with burnt mbongo spices, giving it a unique dark color and smoky flavor.',
-    image: 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=800',
+    image: 'https://homepressurecooking.com/wp-content/uploads/2024/07/mbongo-tchobi-stew-recipe-1721660815.jpg',
     videoUrl: 'https://example.com/mbongo-video',
     prepTime: 30,
     cookTime: 60,
@@ -290,7 +292,7 @@ export const meals: Meal[] = [
     region: 'West',
     difficulty: 'Medium',
     description: 'A hearty one-pot meal from the West region made with plantains, meats, and vegetables.',
-    image: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=800',
+    image: 'https://i0.wp.com/laviebami.com/wp-content/uploads/2022/05/DSC05921-2-scaled.jpg?resize=1536%2C1024&ssl=1',
     videoUrl: 'https://example.com/kondre-video',
     prepTime: 20,
     cookTime: 50,
@@ -327,7 +329,7 @@ export const events: Event[] = [
     date: '2024-02-15',
     location: 'Yaoundé, Hilton Hotel',
     description: 'Annual celebration of Cameroonian cuisine featuring top chefs, cooking competitions, and food tastings from all regions.',
-    image: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=800',
+    image: 'https://www.cameroon-tribune.cm//administrateur/photo/normal_6adfe8b.jpg',
     isUpcoming: true
   },
   {
@@ -336,7 +338,7 @@ export const events: Event[] = [
     date: '2024-03-20',
     location: 'Douala, Bonanjo',
     description: 'Experience the vibrant street food culture of Douala with vendors from across the city.',
-    image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800',
+    image: 'https://festival.afrifoodnetwork.com/wp-content/uploads/2025/09/IMG_0424-2048x1366.jpeg',
     isUpcoming: true
   },
   {
@@ -345,13 +347,13 @@ export const events: Event[] = [
     date: '2023-11-10',
     location: 'Bamenda, Community Center',
     description: 'Learn traditional North West cooking techniques from local grandmothers.',
-    image: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=800',
+    image: 'https://www.globe-gazers.com/wp-content/uploads/2023/05/Oaxaca-cooking-classes-ingredients.jpg',
     isUpcoming: false
   },
   {
     id: '4',
     title: 'Seafood Excellence Week',
-    date: '2024-04-05',
+    date: '2026-04-05',
     location: 'Limbe, Down Beach',
     description: 'A week-long celebration of Cameroonian seafood dishes with live cooking demonstrations.',
     image: 'https://images.unsplash.com/photo-1534939561126-855b8675edd7?w=800',
@@ -375,23 +377,27 @@ export const foodFacts = [
 export const restaurantPartners = [
   {
     id: '1',
-    name: 'Le Moulin de Donai',
-    location: 'Douala',
-    image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400',
-    description: 'Fine dining with traditional Cameroonian flavors'
+    name: 'Le Fulya',
+    location: 'Yaounde,Odza',
+    image: 'https://dynamic-media-cdn.tripadvisor.com/media/photo-o/2b/d7/ba/28/l-atmosphere-du-bar-est.jpg?w=1400&h=700&s=1',
+    description: 'Fine dining with traditional Cameroonian flavors',
+    link: 'https://www.tripadvisor.com/Restaurant_Review-g293773-d27593680-Reviews-LE_FULYA_Lounge-Yaounde_Centre_Region.html'
   },
   {
     id: '2',
-    name: 'Maquis Chez Wou',
-    location: 'Yaoundé',
-    image: 'https://images.unsplash.com/photo-1552566626-52f8b828add9?w=400',
-    description: 'Authentic street food experience'
+    name: 'KOTCHA Restaurant',
+    location: 'Douala,Rue Christian Tobie',
+    image: 'https://dynamic-media-cdn.tripadvisor.com/media/photo-o/2a/81/9a/73/amongst-earthy-tones.jpg?w=1400&h=800&s=1',
+    description: 'KOTCHA Restaurant do offer International and Cameroonian food taste twisted with several Mediterranean, French and Italian touches.',
+    link: 'https://www.tripadvisor.com/Restaurant_Review-g297392-d23826111-Reviews-Kotcha_Restaurant-Douala_Littoral_Region.html'
+    
   },
   {
     id: '3',
-    name: 'Bamboo Garden',
-    location: 'Limbe',
-    image: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=400',
-    description: 'Coastal cuisine with fresh seafood'
+    name: 'Beirut',
+    location: 'Buea, Maliko City',
+    image: 'https://dynamic-media-cdn.tripadvisor.com/media/photo-o/2c/e1/7f/5c/caption.jpg?w=1400&h=800&s=1',
+    description: 'Lebanese, Pizza, Fast Food, Mediterranean',
+    link: 'https://www.tripadvisor.com/Restaurant_Review-g482837-d23739090-Reviews-Beirut-Buea_Southwest_Region.html'
   }
 ];

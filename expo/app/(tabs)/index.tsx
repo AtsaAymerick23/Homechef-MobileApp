@@ -8,7 +8,7 @@ import {
   Image,
   TouchableOpacity,
   Dimensions,
-  FlatList,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Search, ChevronRight, Star } from 'lucide-react-native';
@@ -83,13 +83,15 @@ export default function HomeScreen() {
     );
   }, [searchQuery]);
 
+  const isSearching = searchQuery.trim().length > 0;
+
   const handleMealPress = (mealId: string) => {
     router.push(`/meal/${mealId}`);
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.logoContainer}>
@@ -104,67 +106,102 @@ export default function HomeScreen() {
               placeholderTextColor={Colors.gray}
               value={searchQuery}
               onChangeText={setSearchQuery}
+              returnKeyType="search"
+              clearButtonMode="while-editing"
             />
+            {isSearching && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} activeOpacity={0.7}>
+                <Text style={styles.clearText}>✕</Text>
+              </TouchableOpacity>
+            )}
           </View>
           <Text style={styles.username}>{user?.username || 'Guest'}</Text>
         </View>
 
-        {/* Hero Section */}
-        <View style={styles.heroSection}>
-          <Image
-            source={{ uri: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800' }}
-            style={styles.heroImage}
-          />
-          <View style={styles.heroOverlay}>
-            <Text style={styles.heroTitle}>Welcome to HomeChef</Text>
-            <Text style={styles.heroSubtitle}>
-              Discover the rich flavors of Cameroonian cuisine
-            </Text>
-          </View>
-        </View>
+        {/* ── Content shown only when NOT searching ── */}
+        {!isSearching && (
+          <>
+            {/* Hero Section */}
+            <View style={styles.heroSection}>
+              <Image
+                source={{ uri: 'https://i.pinimg.com/736x/c5/27/4b/c5274b49e5f6d5c8bb7dc6666a7e960e.jpg' }}
+                style={styles.heroImage}
+              />
+              <View style={styles.heroOverlay}>
+                <Text style={styles.heroTitle}>Discover Authentic{'\n'}Cameroonian Cuisine</Text>
+                <Text style={styles.heroSubtitle}>
+                  Explore traditional recipes and learn how to cook delicious{'\n'}meals from the heart of Africa
+                </Text>
+              </View>
+            </View>
 
-        {/* Recipe of the Day */}
-        <View style={styles.section}>
-          <FeaturedMeal meal={featuredMeal} onPress={() => handleMealPress(featuredMeal.id)} />
-        </View>
+            {/* Recipe of the Day */}
+            <View style={styles.section}>
+              <FeaturedMeal meal={featuredMeal} onPress={() => handleMealPress(featuredMeal.id)} />
+            </View>
 
-        {/* Did You Know */}
-        <View style={styles.factCard}>
-          <Text style={styles.factLabel}>Did You Know?</Text>
-          <Text style={styles.factText}>{randomFact}</Text>
-        </View>
+            {/* Did You Know */}
+            <View style={styles.factCard}>
+              <Text style={styles.factLabel}>Did You Know?</Text>
+              <Text style={styles.factText}>{randomFact}</Text>
+            </View>
 
-        {/* Meal Suggestions */}
+            {/* Restaurant Partners */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Partner Restaurants</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.partnersScroll}>
+                {restaurantPartners.map((partner) => (
+                  <View key={partner.id} style={styles.partnerCard}>
+                    <Image source={{ uri: partner.image }} style={styles.partnerImage} />
+                    <View style={styles.partnerInfo}>
+                      <Text style={styles.partnerName}>{partner.name}</Text>
+                      <Text style={styles.partnerLocation}>{partner.location}</Text>
+                      <Text style={styles.partnerDesc} numberOfLines={2}>
+                        {partner.description}
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.learnMoreButton}
+                        onPress={() => partner.link && Linking.openURL(partner.link)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.learnMoreText}>Learn More</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          </>
+        )}
+
+        {/* ── Meal list (always visible, adapts to search) ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            {searchQuery ? 'Search Results' : 'Popular Dishes'}
+            {isSearching
+              ? `Results for "${searchQuery}" (${filteredMeals.length})`
+              : 'Popular Dishes'}
           </Text>
-          {filteredMeals.map((meal) => (
-            <MealCard
-              key={meal.id}
-              meal={meal}
-              onPress={() => handleMealPress(meal.id)}
-            />
-          ))}
-        </View>
 
-        {/* Restaurant Partners */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Partner Restaurants</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.partnersScroll}>
-            {restaurantPartners.map((partner) => (
-              <View key={partner.id} style={styles.partnerCard}>
-                <Image source={{ uri: partner.image }} style={styles.partnerImage} />
-                <View style={styles.partnerInfo}>
-                  <Text style={styles.partnerName}>{partner.name}</Text>
-                  <Text style={styles.partnerLocation}>{partner.location}</Text>
-                  <Text style={styles.partnerDesc} numberOfLines={2}>
-                    {partner.description}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </ScrollView>
+          {filteredMeals.length > 0 ? (
+            filteredMeals.map((meal) => (
+              <MealCard
+                key={meal.id}
+                meal={meal}
+                onPress={() => handleMealPress(meal.id)}
+              />
+            ))
+          ) : (
+            <View style={styles.noResults}>
+              <Text style={styles.noResultsEmoji}>🍽️</Text>
+              <Text style={styles.noResultsTitle}>No dishes found</Text>
+              <Text style={styles.noResultsSubtitle}>
+                Try searching for a region, ingredient, or difficulty level
+              </Text>
+              <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchButton}>
+                <Text style={styles.clearSearchText}>Clear Search</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -215,6 +252,11 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: Colors.black,
+  },
+  clearText: {
+    fontSize: 16,
+    color: Colors.gray,
+    paddingHorizontal: 4,
   },
   username: {
     fontSize: 14,
@@ -431,5 +473,50 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.gray,
     lineHeight: 16,
+    marginBottom: 10,
+  },
+  learnMoreButton: {
+    backgroundColor: '#7b3b22',
+    borderRadius: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    alignSelf: 'flex-start',
+  },
+  learnMoreText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  noResults: {
+    alignItems: 'center',
+    paddingVertical: 48,
+    gap: 12,
+  },
+  noResultsEmoji: {
+    fontSize: 48,
+  },
+  noResultsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: Colors.dark,
+  },
+  noResultsSubtitle: {
+    fontSize: 14,
+    color: Colors.gray,
+    textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: 20,
+  },
+  clearSearchButton: {
+    marginTop: 8,
+    backgroundColor: Colors.accent,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  clearSearchText: {
+    color: Colors.white,
+    fontWeight: '600',
+    fontSize: 14,
   },
 });

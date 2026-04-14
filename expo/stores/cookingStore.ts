@@ -3,12 +3,15 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { CookingHistory, UserRecipe } from '@/constants/meals';
 
+export type { CookingHistory, UserRecipe };
+
 interface CookingState {
   history: CookingHistory[];
   userRecipes: UserRecipe[];
   addToHistory: (entry: CookingHistory) => void;
   addUserRecipe: (recipe: UserRecipe) => void;
   removeUserRecipe: (id: string) => void;
+  updateUserRecipe: (id: string, updates: Partial<UserRecipe>) => void;
 }
 
 export const useCookingStore = create<CookingState>()(
@@ -30,6 +33,13 @@ export const useCookingStore = create<CookingState>()(
       removeUserRecipe: (id) =>
         set((state) => ({
           userRecipes: state.userRecipes.filter((r) => r.id !== id),
+        })),
+
+      updateUserRecipe: (id, updates) =>
+        set((state) => ({
+          userRecipes: state.userRecipes.map((r) =>
+            r.id === id ? { ...r, ...updates } : r
+          ),
         })),
     }),
     {

@@ -278,7 +278,7 @@ export default function LoginScreen() {
               <View style={s.badgeRow}>
                 <View style={s.badge}><Text style={s.badgeText}>🍲 Cameroonian Cuisine</Text></View>
               </View>
-              <Text style={s.heroTitle}>Welcome Back,{'\n'}Home Chef</Text>
+              <Text style={s.heroTitle}>Welcome Back Home,{'\n'}My Chef</Text>
               <Text style={s.heroSub}>From Ndolé to Poulet DG — your kitchen awaits</Text>
 
               <View style={s.tipCard}>
