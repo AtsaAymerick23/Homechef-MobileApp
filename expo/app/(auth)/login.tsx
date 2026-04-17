@@ -19,28 +19,29 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/colors';
 import { useAuthStore } from '@/stores/authStore';
+import { BiometricAuth } from '@/lib/biometric';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 // ─── Design tokens ───────────────────────────────────────────────────────────
 const C = {
-  espresso:   '#1C0A00',
-  mahogany:   '#3B0F07',
-  rust:       '#8B2500',
-  ember:      '#C94F1A',
-  gold:       '#D4900A',
-  cream:      '#F7F2EA',
-  parchment:  '#EDE6D8',
-  sand:       '#D9CEBC',
-  white:      '#FFFFFF',
-  muted:      '#8A7A68',
-  textDark:   '#1C0A00',
+  espresso:  '#1C0A00',
+  mahogany:  '#3B0F07',
+  rust:      '#8B2500',
+  ember:     '#C94F1A',
+  gold:      '#D4900A',
+  cream:     '#F7F2EA',
+  parchment: '#EDE6D8',
+  sand:      '#D9CEBC',
+  white:     '#FFFFFF',
+  muted:     '#8A7A68',
+  textDark:  '#1C0A00',
 };
 
 // ─── Particle component ───────────────────────────────────────────────────────
 const Particle = ({ delay }: { delay: number }) => {
   const anim = useRef(new Animated.Value(0)).current;
-  const x = useRef(Math.random() * SCREEN_W).current;
+  const x    = useRef(Math.random() * SCREEN_W).current;
   const size = useRef(2 + Math.random() * 3).current;
 
   useEffect(() => {
@@ -103,15 +104,8 @@ const FancyInput = ({
     Animated.timing(borderAnim, { toValue: 0, duration: 220, useNativeDriver: false }).start();
   };
 
-  const borderColor = borderAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [C.sand, C.ember],
-  });
-
-  const labelColor = borderAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [C.muted, C.ember],
-  });
+  const borderColor = borderAnim.interpolate({ inputRange: [0, 1], outputRange: [C.sand, C.ember] });
+  const labelColor  = borderAnim.interpolate({ inputRange: [0, 1], outputRange: [C.muted, C.ember] });
 
   return (
     <View style={{ marginBottom: 20 }}>
@@ -147,31 +141,125 @@ const inputStyles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
-  icon: { fontSize: 16, marginRight: 10, opacity: 0.5 },
+  icon:  { fontSize: 16, marginRight: 10, opacity: 0.5 },
   field: { flex: 1, fontSize: 15, color: C.textDark },
 });
 
-// ─── Main screen ─────────────────────────────────────────────────────────────
+// ─── Biometric button ─────────────────────────────────────────────────────────
+const BiometricButton = ({
+  label,
+  onPress,
+  disabled,
+  pulseAnim,
+}: {
+  label: string;
+  onPress: () => void;
+  disabled: boolean;
+  pulseAnim: Animated.Value;
+}) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, { toValue: 0.93, useNativeDriver: true, speed: 30 }).start();
+  };
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 20 }).start();
+  };
+
+  const ringScale   = pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.25] });
+  const ringOpacity = pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.45, 0] });
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      disabled={disabled}
+      activeOpacity={1}
+      style={biometricStyles.wrapper}
+    >
+      <Animated.View style={{ transform: [{ scale: scaleAnim }], alignItems: 'center' }}>
+        {/* Pulsing ring behind the button */}
+        <Animated.View
+          style={[
+            biometricStyles.pulseRing,
+            { transform: [{ scale: ringScale }], opacity: ringOpacity },
+          ]}
+        />
+        <View style={[biometricStyles.circle, disabled && { opacity: 0.5 }]}>
+          <Text style={biometricStyles.fingerprintIcon}>🫆</Text>
+        </View>
+        <Text style={biometricStyles.label}>{label}</Text>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+};
+
+const biometricStyles = StyleSheet.create({
+  wrapper: { alignItems: 'center', justifyContent: 'center' },
+  pulseRing: {
+    position: 'absolute',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 2,
+    borderColor: C.ember,
+    top: -4,
+    left: -4,
+  },
+  circle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: C.white,
+    borderWidth: 1.5,
+    borderColor: C.sand,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: C.espresso,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  fingerprintIcon: { fontSize: 26 },
+  label: {
+    marginTop: 8,
+    fontSize: 11,
+    fontWeight: '600',
+    color: C.ember,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+});
+
+// ─── Main screen ──────────────────────────────────────────────────────────────
 export default function LoginScreen() {
   const router = useRouter();
-  const { signIn } = useAuthStore();
+  const { signIn, signInWithBiometrics, enableBiometrics, biometricEnabled } = useAuthStore();
 
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
-  const [isLoading, setIsLoading]   = useState(false);
+  const [rememberMe, setRememberMe]             = useState(false);
+  const [isLoading, setIsLoading]               = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricLabel, setBiometricLabel]     = useState('Fingerprint');
+  const [enableBioOnLogin, setEnableBioOnLogin] = useState(false);
 
   // Mount animation values
-  const heroFade     = useRef(new Animated.Value(0)).current;
-  const heroSlide    = useRef(new Animated.Value(30)).current;
-  const formFade     = useRef(new Animated.Value(0)).current;
-  const formSlide    = useRef(new Animated.Value(40)).current;
-  const logoScale    = useRef(new Animated.Value(0.6)).current;
-  const logoOpacity  = useRef(new Animated.Value(0)).current;
-  const glowAnim     = useRef(new Animated.Value(0)).current;
+  const heroFade    = useRef(new Animated.Value(0)).current;
+  const heroSlide   = useRef(new Animated.Value(30)).current;
+  const formFade    = useRef(new Animated.Value(0)).current;
+  const formSlide   = useRef(new Animated.Value(40)).current;
+  const logoScale   = useRef(new Animated.Value(0.6)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const glowAnim    = useRef(new Animated.Value(0)).current;
+
+  // Biometric pulse
+  const bioPulse    = useRef(new Animated.Value(0)).current;
 
   // Logo bounce on success
-  const successScale = useRef(new Animated.Value(1)).current;
+  const successScale  = useRef(new Animated.Value(1)).current;
   const successRotate = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -198,6 +286,25 @@ export default function LoginScreen() {
         Animated.timing(glowAnim, { toValue: 0, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
       ])
     ).start();
+
+    // Biometric pulse loop
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(bioPulse, { toValue: 1, duration: 1400, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+        Animated.timing(bioPulse, { toValue: 0, duration: 400,  useNativeDriver: true }),
+        Animated.delay(800),
+      ])
+    ).start();
+
+    // Check biometric availability
+    (async () => {
+      const supported = await BiometricAuth.isSupported();
+      setBiometricAvailable(supported);
+      if (supported) {
+        const lbl = await BiometricAuth.getBiometricLabel();
+        setBiometricLabel(lbl);
+      }
+    })();
   }, []);
 
   const triggerSuccessAnim = () => {
@@ -225,10 +332,26 @@ export default function LoginScreen() {
     }
     setIsLoading(true);
     const { error } = await signIn(email.trim(), password);
-    setIsLoading(false);
 
-    if (error) {
+    if (!error) {
+      triggerSuccessAnim();
+      // Offer to enable biometrics if the toggle was set and not already enabled
+      if (enableBioOnLogin && biometricAvailable && !biometricEnabled) {
+        await enableBiometrics(email.trim(), password);
+      }
+    } else {
       Alert.alert('Login failed', error.message || 'Invalid credentials');
+    }
+    setIsLoading(false);
+  };
+
+  const handleBiometricLogin = async () => {
+    setIsLoading(true);
+    const { error, cancelled } = await signInWithBiometrics();
+    setIsLoading(false);
+    if (cancelled) return;
+    if (error) {
+      Alert.alert('Biometric login failed', error.message);
     } else {
       triggerSuccessAnim();
     }
@@ -237,9 +360,7 @@ export default function LoginScreen() {
   const glowOpacity = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.2, 0.55] });
   const spinInterp  = successRotate.interpolate({ inputRange: [-10, 10], outputRange: ['-10deg', '10deg'] });
 
-  const particles = Array.from({ length: 12 }, (_, i) => (
-    <Particle key={i} delay={i * 400} />
-  ));
+  const particles = Array.from({ length: 12 }, (_, i) => <Particle key={i} delay={i * 400} />);
 
   return (
     <SafeAreaView style={s.root} edges={['top']}>
@@ -248,14 +369,10 @@ export default function LoginScreen() {
 
           {/* ── HERO ──────────────────────────────────────────────────────── */}
           <View style={s.hero}>
-            {/* Floating particles */}
             {particles}
-
-            {/* Decorative arc */}
             <View style={s.arcTop} />
             <View style={s.arcBottom} />
 
-            {/* Logo */}
             <Animated.View
               style={{
                 transform: [{ scale: successScale }, { rotate: spinInterp }, { scale: logoScale }],
@@ -273,14 +390,12 @@ export default function LoginScreen() {
               </View>
             </Animated.View>
 
-            {/* Hero copy */}
             <Animated.View style={{ opacity: heroFade, transform: [{ translateY: heroSlide }], alignItems: 'center' }}>
               <View style={s.badgeRow}>
                 <View style={s.badge}><Text style={s.badgeText}>🍲 Cameroonian Cuisine</Text></View>
               </View>
               <Text style={s.heroTitle}>Welcome Back Home,{'\n'}My Chef</Text>
               <Text style={s.heroSub}>From Ndolé to Poulet DG — your kitchen awaits</Text>
-
               <View style={s.tipCard}>
                 <Text style={s.tipLabel}>PRO TIP</Text>
                 <Text style={s.tipText}>Achu soup is traditionally eaten with fingers — no utensils needed!</Text>
@@ -291,7 +406,6 @@ export default function LoginScreen() {
           {/* ── FORM PANEL ────────────────────────────────────────────────── */}
           <Animated.View style={[s.panel, { opacity: formFade, transform: [{ translateY: formSlide }] }]}>
 
-            {/* Brand wordmark */}
             <View style={s.wordmarkRow}>
               <Text style={s.wordHome}>Home</Text>
               <Text style={s.wordChef}>Chef</Text>
@@ -305,7 +419,6 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Divider */}
             <View style={s.divider} />
 
             <FancyInput
@@ -341,6 +454,21 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* Enable biometrics toggle — shown only first time, before it's set up */}
+            {biometricAvailable && !biometricEnabled && (
+              <TouchableOpacity
+                style={s.bioToggleRow}
+                onPress={() => setEnableBioOnLogin(!enableBioOnLogin)}
+                activeOpacity={0.7}
+              >
+                <Text style={s.bioToggleIcon}>🫆</Text>
+                <Text style={s.bioToggleText}>Enable {biometricLabel} login after signing in</Text>
+                <View style={[s.check, enableBioOnLogin && s.checkActive]}>
+                  {enableBioOnLogin && <Text style={s.checkMark}>✓</Text>}
+                </View>
+              </TouchableOpacity>
+            )}
+
             {/* CTA */}
             <TouchableOpacity
               style={[s.cta, isLoading && { opacity: 0.65 }]}
@@ -353,8 +481,25 @@ export default function LoginScreen() {
                 : <Text style={s.ctaText}>Sign in to my kitchen →</Text>}
             </TouchableOpacity>
 
+            {/* Biometric login — shown once credentials are saved */}
+            {biometricAvailable && biometricEnabled && (
+              <>
+                <View style={s.orRow}>
+                  <View style={s.orLine} />
+                  <Text style={s.orText}>or</Text>
+                  <View style={s.orLine} />
+                </View>
+                <BiometricButton
+                  label={`Sign in with ${biometricLabel}`}
+                  onPress={handleBiometricLogin}
+                  disabled={isLoading}
+                  pulseAnim={bioPulse}
+                />
+              </>
+            )}
+
             {/* Social hint */}
-            <View style={s.orRow}>
+            <View style={[s.orRow, { marginTop: biometricEnabled ? 28 : 0 }]}>
               <View style={s.orLine} />
               <Text style={s.orText}>or continue with</Text>
               <View style={s.orLine} />
@@ -379,7 +524,6 @@ export default function LoginScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.espresso },
 
-  // Hero
   hero: {
     backgroundColor: C.mahogany,
     alignItems: 'center',
@@ -389,116 +533,60 @@ const s = StyleSheet.create({
     overflow: 'hidden',
   },
   arcTop: {
-    position: 'absolute',
-    top: -80,
-    right: -80,
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    borderWidth: 1,
-    borderColor: 'rgba(212,144,10,0.18)',
+    position: 'absolute', top: -80, right: -80,
+    width: 240, height: 240, borderRadius: 120,
+    borderWidth: 1, borderColor: 'rgba(212,144,10,0.18)',
   },
   arcBottom: {
-    position: 'absolute',
-    bottom: -60,
-    left: -60,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    borderWidth: 1,
-    borderColor: 'rgba(212,144,10,0.12)',
+    position: 'absolute', bottom: -60, left: -60,
+    width: 180, height: 180, borderRadius: 90,
+    borderWidth: 1, borderColor: 'rgba(212,144,10,0.12)',
   },
 
-  // Logo
   glowRing: {
-    position: 'absolute',
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    backgroundColor: C.gold,
-    top: -7,
-    left: -7,
+    position: 'absolute', width: 130, height: 130, borderRadius: 65,
+    backgroundColor: C.gold, top: -7, left: -7,
   },
   logoRing: {
-    width: 116,
-    height: 116,
-    borderRadius: 58,
-    borderWidth: 3,
-    borderColor: C.gold,
-    overflow: 'hidden',
-    backgroundColor: C.sand,
+    width: 116, height: 116, borderRadius: 58,
+    borderWidth: 3, borderColor: C.gold,
+    overflow: 'hidden', backgroundColor: C.sand,
   },
   logoImg: { width: 116, height: 116 },
 
-  // Badge
   badgeRow: { flexDirection: 'row', marginBottom: 16 },
   badge: {
     backgroundColor: 'rgba(212,144,10,0.18)',
-    borderWidth: 1,
-    borderColor: 'rgba(212,144,10,0.35)',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 5,
+    borderWidth: 1, borderColor: 'rgba(212,144,10,0.35)',
+    borderRadius: 20, paddingHorizontal: 14, paddingVertical: 5,
   },
   badgeText: { color: C.gold, fontSize: 11, fontWeight: '600', letterSpacing: 0.4 },
 
-  // Hero text
   heroTitle: {
-    fontSize: 30,
-    fontWeight: '800',
-    color: C.cream,
-    textAlign: 'center',
-    lineHeight: 38,
-    marginBottom: 10,
+    fontSize: 30, fontWeight: '800', color: C.cream,
+    textAlign: 'center', lineHeight: 38, marginBottom: 10,
   },
-  heroSub: {
-    fontSize: 13,
-    color: 'rgba(247,242,234,0.6)',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
+  heroSub: { fontSize: 13, color: 'rgba(247,242,234,0.6)', textAlign: 'center', marginBottom: 24 },
 
-  // Tip card
   tipCard: {
     backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    width: '100%',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 14, paddingVertical: 14, paddingHorizontal: 18, width: '100%',
   },
-  tipLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: C.gold,
-    letterSpacing: 1.2,
-    marginBottom: 5,
-  },
-  tipText: {
-    fontSize: 13,
-    color: 'rgba(247,242,234,0.75)',
-    lineHeight: 20,
-    fontStyle: 'italic',
-  },
+  tipLabel: { fontSize: 10, fontWeight: '700', color: C.gold, letterSpacing: 1.2, marginBottom: 5 },
+  tipText:  { fontSize: 13, color: 'rgba(247,242,234,0.75)', lineHeight: 20, fontStyle: 'italic' },
 
-  // Panel
   panel: {
     backgroundColor: C.cream,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    paddingHorizontal: 28,
-    paddingTop: 36,
-    paddingBottom: 50,
+    borderTopLeftRadius: 32, borderTopRightRadius: 32,
+    paddingHorizontal: 28, paddingTop: 36, paddingBottom: 50,
     flex: 1,
   },
 
-  // Wordmark
   wordmarkRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: 8 },
   wordHome: { fontSize: 28, fontWeight: '900', color: C.rust, letterSpacing: -0.5 },
   wordChef: { fontSize: 28, fontWeight: '900', color: C.gold, letterSpacing: -0.5 },
 
-  // Panel headings
   panelTitle: { fontSize: 20, fontWeight: '700', color: C.textDark, textAlign: 'center', marginBottom: 8 },
   registerRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: 24 },
   registerText: { fontSize: 13, color: C.muted },
@@ -506,54 +594,49 @@ const s = StyleSheet.create({
 
   divider: { height: 1, backgroundColor: C.sand, marginBottom: 24 },
 
-  // Remember me row
-  rememberRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 },
+  rememberRow: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', marginBottom: 20,
+  },
   rememberLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   check: {
-    width: 18, height: 18,
-    borderRadius: 5,
-    borderWidth: 1.5,
-    borderColor: C.sand,
-    backgroundColor: C.white,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 18, height: 18, borderRadius: 5,
+    borderWidth: 1.5, borderColor: C.sand,
+    backgroundColor: C.white, alignItems: 'center', justifyContent: 'center',
   },
   checkActive: { backgroundColor: C.rust, borderColor: C.rust },
-  checkMark: { color: C.white, fontSize: 11, fontWeight: '800' },
+  checkMark:   { color: C.white, fontSize: 11, fontWeight: '800' },
   rememberText: { fontSize: 13, color: C.muted },
-  forgotText: { fontSize: 13, color: C.ember, fontWeight: '600' },
+  forgotText:   { fontSize: 13, color: C.ember, fontWeight: '600' },
 
-  // CTA
+  // Biometric enable toggle row
+  bioToggleRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: C.white, borderRadius: 14,
+    borderWidth: 1.5, borderColor: C.sand,
+    paddingHorizontal: 16, paddingVertical: 14, marginBottom: 20,
+  },
+  bioToggleIcon: { fontSize: 18 },
+  bioToggleText: { flex: 1, fontSize: 13, color: C.muted, fontWeight: '500' },
+
   cta: {
-    backgroundColor: C.espresso,
-    borderRadius: 16,
-    paddingVertical: 18,
-    alignItems: 'center',
-    marginBottom: 28,
+    backgroundColor: C.espresso, borderRadius: 16,
+    paddingVertical: 18, alignItems: 'center', marginBottom: 28,
     shadowColor: C.espresso,
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
-    elevation: 8,
+    shadowOpacity: 0.35, shadowRadius: 14, elevation: 8,
   },
   ctaText: { color: C.cream, fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
 
-  // Or divider
   orRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 },
   orLine: { flex: 1, height: 1, backgroundColor: C.sand },
   orText: { fontSize: 12, color: C.muted, fontWeight: '500' },
 
-  // Social
   socialRow: { flexDirection: 'row', justifyContent: 'center', gap: 14 },
   socialBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: C.sand,
-    backgroundColor: C.white,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 52, height: 52, borderRadius: 14,
+    borderWidth: 1.5, borderColor: C.sand,
+    backgroundColor: C.white, alignItems: 'center', justifyContent: 'center',
   },
   socialBtnText: { fontSize: 16, fontWeight: '700', color: C.textDark },
 });

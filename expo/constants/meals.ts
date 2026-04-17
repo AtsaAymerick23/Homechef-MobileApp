@@ -59,7 +59,7 @@ export const meals: Meal[] = [
     difficulty: 'Medium',
     description: 'A beloved Cameroonian dish made with bitterleaf greens, peanuts, and crayfish. Often called the national dish of Cameroon.',
     image: 'https://images.squarespace-cdn.com/content/v1/5e04d1c138bd0a5d714cea2b/1615411039884-HLYF8GGIP67LFLCYN21D/Ndole-cameroon+cuisine-kengs+kitchen2.jpg',
-    videoUrl: 'https://example.com/ndole-video',
+    videoUrl: 'https://www.youtube.com/watch?v=7EmCNGDKc_U',
     prepTime: 30,
     cookTime: 45,
     servings: 4,
@@ -94,7 +94,7 @@ export const meals: Meal[] = [
     difficulty: 'Medium',
     description: 'A sumptuous dish of fried plantains and chicken, typically served to high-ranking officials (DG = Directeur Général).',
     image: 'https://i0.wp.com/www.yummymedley.com/wp-content/uploads/2017/06/01-Cameroonian-Poulet-DG-Top-Shot.jpg?w=750&ssl=1/',
-    videoUrl: 'https://example.com/poulet-dg-video',
+    videoUrl: 'https://www.youtube.com/watch?v=qSAWFFri2lg',
     prepTime: 25,
     cookTime: 40,
     servings: 6,
@@ -130,7 +130,7 @@ export const meals: Meal[] = [
     difficulty: 'Easy',
     description: 'Traditional steamed bean pudding made from black-eyed peas, wrapped and cooked in banana leaves.',
     image: 'https://www.africanbites.com/wp-content/uploads/2025/08/Koki-Beans-1.jpg',
-    videoUrl: 'https://example.com/koki-video',
+    videoUrl: 'https://www.youtube.com/watch?v=Fp4z5SmqGKg',
     prepTime: 45,
     cookTime: 60,
     servings: 8,
@@ -162,7 +162,7 @@ export const meals: Meal[] = [
     difficulty: 'Hard',
     description: 'A hearty soup from the South West region made with finely sliced eru leaves, waterleaf, and assorted meats.',
     image: 'https://foodinvitecameroon.com/wp-content/uploads/2022/01/Eru.-600x525.png',
-    videoUrl: 'https://example.com/eru-video',
+    videoUrl: 'https://www.youtube.com/watch?v=GwgWtlfZSh4',
     prepTime: 40,
     cookTime: 50,
     servings: 6,
@@ -195,7 +195,7 @@ export const meals: Meal[] = [
     difficulty: 'Hard',
     description: 'A traditional dish from the North West, featuring pounded cocoyams served with a rich yellow soup.',
     image: 'https://theafrikanstore.com/cdn/shop/articles/achu_soup_900x@2x.jpg?v=1694519397',
-    videoUrl: 'https://example.com/achu-video',
+    videoUrl: 'https://www.youtube.com/watch?v=pD7Bt5R9GaM',
     prepTime: 60,
     cookTime: 90,
     servings: 6,
@@ -228,7 +228,7 @@ export const meals: Meal[] = [
     difficulty: 'Easy',
     description: 'A simple yet delicious dish of mashed corn and beans, popular in the Centre region.',
     image: 'https://epiceries-staffsas.com/cdn/shop/files/Platdesanga_1.jpg?v=1707944892&width=600',
-    videoUrl: 'https://example.com/sanga-video',
+    videoUrl: 'https://www.youtube.com/watch?v=pXAVZzrKCiE',
     prepTime: 15,
     cookTime: 45,
     servings: 4,
@@ -260,7 +260,7 @@ export const meals: Meal[] = [
     difficulty: 'Medium',
     description: 'A distinctive black soup made with burnt mbongo spices, giving it a unique dark color and smoky flavor.',
     image: 'https://homepressurecooking.com/wp-content/uploads/2024/07/mbongo-tchobi-stew-recipe-1721660815.jpg',
-    videoUrl: 'https://example.com/mbongo-video',
+    videoUrl: 'https://www.youtube.com/watch?v=PV6LH1Z7__M',
     prepTime: 30,
     cookTime: 60,
     servings: 4,
@@ -293,7 +293,7 @@ export const meals: Meal[] = [
     difficulty: 'Medium',
     description: 'A hearty one-pot meal from the West region made with plantains, meats, and vegetables.',
     image: 'https://i0.wp.com/laviebami.com/wp-content/uploads/2022/05/DSC05921-2-scaled.jpg?resize=1536%2C1024&ssl=1',
-    videoUrl: 'https://example.com/kondre-video',
+    videoUrl: 'https://www.youtube.com/watch?v=TEmCoyYVckA',
     prepTime: 20,
     cookTime: 50,
     servings: 6,
@@ -330,7 +330,7 @@ export const events: Event[] = [
     location: 'Yaoundé, Hilton Hotel',
     description: 'Annual celebration of Cameroonian cuisine featuring top chefs, cooking competitions, and food tastings from all regions.',
     image: 'https://www.cameroon-tribune.cm//administrateur/photo/normal_6adfe8b.jpg',
-    isUpcoming: true
+    isUpcoming: false
   },
   {
     id: '2',
@@ -339,7 +339,7 @@ export const events: Event[] = [
     location: 'Douala, Bonanjo',
     description: 'Experience the vibrant street food culture of Douala with vendors from across the city.',
     image: 'https://festival.afrifoodnetwork.com/wp-content/uploads/2025/09/IMG_0424-2048x1366.jpeg',
-    isUpcoming: true
+    isUpcoming: false
   },
   {
     id: '3',
@@ -353,10 +353,10 @@ export const events: Event[] = [
   {
     id: '4',
     title: 'Seafood Excellence Week',
-    date: '2026-04-05',
+    date: '2026-05-05',
     location: 'Limbe, Down Beach',
     description: 'A week-long celebration of Cameroonian seafood dishes with live cooking demonstrations.',
-    image: 'https://images.unsplash.com/photo-1534939561126-855b8675edd7?w=800',
+    image: 'https://images.pexels.com/photos/3903587/pexels-photo-3903587.jpeg',
     isUpcoming: true
   }
 ];
