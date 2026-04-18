@@ -85,10 +85,7 @@ export const useAuthStore = create<AuthState>()(
         return { error };
       },
 
-      /**
-       * Sign in using biometric authentication.
-       * Prompts the user for fingerprint/face, then uses stored credentials.
-       */
+
       signInWithBiometrics: async () => {
         const supported = await BiometricAuth.isSupported();
         if (!supported) {
