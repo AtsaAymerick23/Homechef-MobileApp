@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -115,40 +115,62 @@ function WrittenRecipe({ meal }: { meal: Meal }) {
   const [currentStep, setCurrentStep] = useState(0);
   const [lastShake, setLastShake] = useState(0);
 
-  // card slide animation
+  // Refs to keep accelerometer callback always reading latest values
+  // without needing to re-subscribe on every state change
+  const currentStepRef = useRef(currentStep);
+  const lastShakeRef = useRef(lastShake);
+
+  // Keep refs in sync with state
+  useEffect(() => { currentStepRef.current = currentStep; }, [currentStep]);
+  useEffect(() => { lastShakeRef.current = lastShake; }, [lastShake]);
+
+  // Card slide animation
   const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
-  const animateStep = (next: number) => {
+  const animateStep = useCallback((next: number) => {
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 0, duration: 120, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: -30, duration: 120, useNativeDriver: true }),
     ]).start(() => {
       setCurrentStep(next);
+      currentStepRef.current = next;
       slideAnim.setValue(30);
       Animated.parallel([
         Animated.timing(fadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
         Animated.spring(slideAnim, { toValue: 0, damping: 14, useNativeDriver: true }),
       ]).start();
     });
-  };
+  }, [fadeAnim, slideAnim]);
 
+  // Subscribe once — refs keep the callback fresh without re-subscribing
   useEffect(() => {
-    let subscription: any;
+    if (Platform.OS === 'web') return;
+
+    let subscription: ReturnType<typeof Accelerometer.addListener> | null = null;
+
     const subscribe = async () => {
+      await Accelerometer.setUpdateInterval(100);
       subscription = Accelerometer.addListener(({ x, y, z }) => {
         const acceleration = Math.sqrt(x * x + y * y + z * z);
         const now = Date.now();
-        if (acceleration > 1.8 && now - lastShake > 1000) {
+
+        if (acceleration > 1.8 && now - lastShakeRef.current > 1000) {
+          // Update ref immediately so rapid shakes are debounced correctly
+          lastShakeRef.current = now;
           setLastShake(now);
-          if (currentStep < meal.instructions.length - 1)
-            animateStep(currentStep + 1);
+
+          const next = currentStepRef.current + 1;
+          if (next < meal.instructions.length) {
+            animateStep(next);
+          }
         }
       });
     };
-    if (Platform.OS !== 'web') subscribe();
+
+    subscribe();
     return () => subscription?.remove();
-  }, [lastShake, currentStep, meal.instructions.length]);
+  }, []); // Empty deps — refs keep values fresh, no re-subscribe needed
 
   const progress = (currentStep + 1) / meal.instructions.length;
   const progressAnim = useRef(new Animated.Value(progress)).current;
