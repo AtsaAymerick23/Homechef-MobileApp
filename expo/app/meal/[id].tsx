@@ -123,6 +123,16 @@ function WrittenRecipe({ meal }: { meal: Meal }) {
   useEffect(() => { currentStepRef.current = currentStep; }, [currentStep]);
   useEffect(() => { lastShakeRef.current = lastShake; }, [lastShake]);
 
+  // Refs to keep accelerometer callback always reading latest values
+  // without needing to re-subscribe on every state change
+  const currentStepRef = useRef(currentStep);
+  const lastShakeRef = useRef(lastShake);
+
+  // Keep refs in sync with state
+  useEffect(() => { currentStepRef.current = currentStep; }, [currentStep]);
+  useEffect(() => { lastShakeRef.current = lastShake; }, [lastShake]);
+
+  // Card slide animation
   const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
@@ -141,6 +151,7 @@ function WrittenRecipe({ meal }: { meal: Meal }) {
     });
   }, [fadeAnim, slideAnim]);
 
+  // Subscribe once — refs keep the callback fresh without re-subscribing
   useEffect(() => {
     if (Platform.OS === 'web') return;
 
@@ -153,6 +164,7 @@ function WrittenRecipe({ meal }: { meal: Meal }) {
         const now = Date.now();
 
         if (acceleration > 1.8 && now - lastShakeRef.current > 1000) {
+          // Update ref immediately so rapid shakes are debounced correctly
           lastShakeRef.current = now;
           setLastShake(now);
 
@@ -167,6 +179,7 @@ function WrittenRecipe({ meal }: { meal: Meal }) {
     subscribe();
     return () => subscription?.remove();
   }, []);
+  }, []); // Empty deps — refs keep values fresh, no re-subscribe needed
 
   const progress = (currentStep + 1) / meal.instructions.length;
   const progressAnim = useRef(new Animated.Value(progress)).current;
