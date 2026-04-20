@@ -36,6 +36,9 @@
       ],
       "expo-font",
       "expo-web-browser",
+      "expo-secure-store",
+      "expo-audio",
+      "expo-video"
       "expo-secure-store"
     ],
     "experiments": {

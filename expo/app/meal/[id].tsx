@@ -26,7 +26,7 @@ import {
   Heart,
 } from 'lucide-react-native';
 import { Accelerometer } from 'expo-sensors';
-import { Video, ResizeMode } from 'expo-av';
+import YoutubeIframe from 'react-native-youtube-iframe';
 import { Colors } from '@/constants/colors';
 import { meals, type Meal } from '@/constants/meals';
 
@@ -34,6 +34,8 @@ const { width, height } = Dimensions.get('window');
 
 const HERO_HEIGHT = 320;
 const HEADER_HEIGHT = 60;
+const VIDEO_WIDTH = width - 32;
+const VIDEO_HEIGHT = Math.round(VIDEO_WIDTH * (9 / 16)); // 16:9 aspect ratio
 
 // ─── Pill badge ──────────────────────────────────────────────────────────────
 function Badge({ label, color = Colors.primary }: { label: string; color?: string }) {
@@ -115,6 +117,12 @@ function WrittenRecipe({ meal }: { meal: Meal }) {
   const [currentStep, setCurrentStep] = useState(0);
   const [lastShake, setLastShake] = useState(0);
 
+  const currentStepRef = useRef(currentStep);
+  const lastShakeRef = useRef(lastShake);
+
+  useEffect(() => { currentStepRef.current = currentStep; }, [currentStep]);
+  useEffect(() => { lastShakeRef.current = lastShake; }, [lastShake]);
+
   // Refs to keep accelerometer callback always reading latest values
   // without needing to re-subscribe on every state change
   const currentStepRef = useRef(currentStep);
@@ -170,6 +178,7 @@ function WrittenRecipe({ meal }: { meal: Meal }) {
 
     subscribe();
     return () => subscription?.remove();
+  }, []);
   }, []); // Empty deps — refs keep values fresh, no re-subscribe needed
 
   const progress = (currentStep + 1) / meal.instructions.length;
@@ -185,13 +194,11 @@ function WrittenRecipe({ meal }: { meal: Meal }) {
 
   return (
     <View style={recipeStyles.container}>
-      {/* Shake hint */}
       <View style={recipeStyles.shakeHint}>
         <Text style={recipeStyles.shakeIcon}>📱</Text>
         <Text style={recipeStyles.shakeText}>Shake to advance to the next step</Text>
       </View>
 
-      {/* Progress */}
       <View style={recipeStyles.progressRow}>
         <Text style={recipeStyles.progressLabel}>
           Step {currentStep + 1} / {meal.instructions.length}
@@ -212,7 +219,6 @@ function WrittenRecipe({ meal }: { meal: Meal }) {
         />
       </View>
 
-      {/* Step card */}
       <Animated.View
         style={[
           recipeStyles.stepCard,
@@ -225,7 +231,6 @@ function WrittenRecipe({ meal }: { meal: Meal }) {
         <Text style={recipeStyles.stepText}>{meal.instructions[currentStep]}</Text>
       </Animated.View>
 
-      {/* Nav buttons */}
       <View style={recipeStyles.navRow}>
         <TouchableOpacity
           style={[recipeStyles.navBtn, currentStep === 0 && recipeStyles.navBtnDisabled]}
@@ -255,7 +260,6 @@ function WrittenRecipe({ meal }: { meal: Meal }) {
         </TouchableOpacity>
       </View>
 
-      {/* Ingredients */}
       <View style={recipeStyles.ingredientsSection}>
         <Text style={recipeStyles.sectionTitle}>Ingredients</Text>
         {meal.ingredients.map((ingredient, i) => (
@@ -380,42 +384,60 @@ const recipeStyles = StyleSheet.create({
   ingredientText: { fontSize: 14, color: Colors.dark, flex: 1 },
 });
 
+// ─── Helper: extract YouTube video ID ────────────────────────────────────────
+function extractYouTubeId(url: string): string {
+  const patterns = [
+    /[?&]v=([^&#]+)/,
+    /youtu\.be\/([^?&#]+)/,
+    /\/shorts\/([^?&#]+)/,
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  return url;
+}
+
 // ─── Video Recipe ─────────────────────────────────────────────────────────────
 function VideoRecipe({ meal }: { meal: Meal }) {
-  const videoRef = useRef<Video>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const [playing, setPlaying] = useState(false);
+  const videoId = extractYouTubeId(meal.videoUrl);
 
-  const handlePlay = () => {
-    Animated.sequence([
-      Animated.timing(scaleAnim, { toValue: 0.92, duration: 100, useNativeDriver: true }),
-      Animated.spring(scaleAnim, { toValue: 1, damping: 10, useNativeDriver: true }),
-    ]).start();
-    setIsPlaying(!isPlaying);
-  };
+  const onStateChange = useCallback((state: string) => {
+    if (state === 'ended') {
+      setPlaying(false);
+    }
+  }, []);
 
   return (
     <View style={videoStyles.container}>
       <View style={videoStyles.videoWrapper}>
-        <Video
-          ref={videoRef}
-          source={{ uri: meal.videoUrl }}
-          style={videoStyles.video}
-          resizeMode={ResizeMode.COVER}
-          useNativeControls
-          isLooping
+        <YoutubeIframe
+          height={VIDEO_HEIGHT}
+          width={VIDEO_WIDTH}
+          videoId={videoId}
+          play={playing}
+          onChangeState={onStateChange}
+          webViewStyle={{ flex: 1 }}
+          webViewProps={{
+            allowsFullscreenVideo: true,
+            allowsInlineMediaPlayback: true,
+          }}
         />
-        <View style={videoStyles.overlay} />
-        <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-          <TouchableOpacity style={videoStyles.playBtn} onPress={handlePlay} activeOpacity={1}>
-            {isPlaying ? (
-              <Pause size={28} color={Colors.white} />
-            ) : (
-              <Play size={28} color={Colors.white} />
-            )}
-          </TouchableOpacity>
-        </Animated.View>
       </View>
+
+      <TouchableOpacity
+        style={[videoStyles.playBtn, playing && videoStyles.pauseBtn]}
+        onPress={() => setPlaying((prev) => !prev)}
+        activeOpacity={0.85}
+      >
+        {playing ? (
+          <Pause size={22} color={Colors.white} />
+        ) : (
+          <Play size={22} color={Colors.white} />
+        )}
+        <Text style={videoStyles.playBtnText}>{playing ? 'Pause' : 'Play'}</Text>
+      </TouchableOpacity>
 
       <View style={videoStyles.infoCard}>
         <View style={videoStyles.infoHeader}>
@@ -434,39 +456,45 @@ function VideoRecipe({ meal }: { meal: Meal }) {
     </View>
   );
 }
+
 const videoStyles = StyleSheet.create({
   container: { paddingHorizontal: 16 },
   videoWrapper: {
-    height: 220,
-    backgroundColor: Colors.dark,
+    width: VIDEO_WIDTH,
+    height: VIDEO_HEIGHT,
     borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
     overflow: 'hidden',
-    marginBottom: 16,
+    marginBottom: 14,
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
     shadowRadius: 16,
     elevation: 6,
-  },
-  video: { width: '100%', height: '100%', position: 'absolute' },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: Colors.dark,
+    alignSelf: 'center',
   },
   playBtn: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: Colors.primary,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.primary,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginBottom: 14,
+    shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 5,
+    elevation: 4,
+  },
+  pauseBtn: {
+    backgroundColor: Colors.dark,
+  },
+  playBtnText: {
+    color: Colors.white,
+    fontSize: 15,
+    fontWeight: '700',
   },
   infoCard: {
     backgroundColor: Colors.white,
@@ -503,16 +531,9 @@ export default function MealDetailScreen() {
 
   const meal = meals.find((m) => m.id === id);
 
-  // Hero parallax
   const heroTranslate = scrollY.interpolate({
     inputRange: [-100, 0, HERO_HEIGHT],
     outputRange: [50, 0, -HERO_HEIGHT * 0.4],
-    extrapolate: 'clamp',
-  });
-  // Sticky header opacity
-  const headerBg = scrollY.interpolate({
-    inputRange: [HERO_HEIGHT - HEADER_HEIGHT - 40, HERO_HEIGHT - HEADER_HEIGHT],
-    outputRange: [0, 1],
     extrapolate: 'clamp',
   });
 
@@ -560,11 +581,13 @@ export default function MealDetailScreen() {
       <Animated.View
         style={[
           styles.stickyHeader,
-          { backgroundColor: scrollY.interpolate({
-            inputRange: [HERO_HEIGHT - HEADER_HEIGHT - 40, HERO_HEIGHT - HEADER_HEIGHT],
-            outputRange: ['rgba(255,255,255,0)', 'rgba(255,255,255,1)'],
-            extrapolate: 'clamp',
-          }) },
+          {
+            backgroundColor: scrollY.interpolate({
+              inputRange: [HERO_HEIGHT - HEADER_HEIGHT - 40, HERO_HEIGHT - HEADER_HEIGHT],
+              outputRange: ['rgba(255,255,255,0)', 'rgba(255,255,255,1)'],
+              extrapolate: 'clamp',
+            }),
+          },
         ]}
       >
         <SafeAreaView edges={['top']} style={styles.stickyHeaderInner}>
@@ -696,7 +719,6 @@ export default function MealDetailScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F7F3EE' },
-  // sticky header
   stickyHeader: {
     position: 'absolute',
     top: 0,
@@ -751,7 +773,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  // hero
   heroImage: {
     width,
     height: HERO_HEIGHT + 60,
@@ -776,7 +797,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     lineHeight: 34,
   },
-  // stats
   statsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -785,7 +805,6 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 4,
   },
-  // description
   descSection: {
     paddingHorizontal: 16,
     paddingVertical: 16,
@@ -806,7 +825,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary + '30',
   },
   costText: { fontSize: 13, fontWeight: '700', color: Colors.primary },
-  // tabs
   tabWrapper: {
     flexDirection: 'row',
     marginHorizontal: 16,
@@ -840,7 +858,6 @@ const styles = StyleSheet.create({
   },
   tabTextActive: { color: Colors.white },
   tabContent: { marginBottom: 4 },
-  // cook button
   cookSection: {
     paddingHorizontal: 16,
     paddingVertical: 24,
