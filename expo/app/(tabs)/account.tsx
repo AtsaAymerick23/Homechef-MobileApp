@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,309 +8,603 @@ import {
   TextInput,
   Image,
   Alert,
+  Animated,
+  Easing,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LogOut, Camera, Edit2, Check, X } from 'lucide-react-native';
+import { LogOut, Camera, Edit2, Check, X, User } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { Colors } from '@/constants/colors';
 import { useAuthStore } from '@/stores/authStore';
 
+// ─── Design tokens ────────────────────────────────────────────────────────────
+const T = {
+  cream: '#FAF7F2',
+  sand: '#EDE8DF',
+  terracotta: '#C4622D',
+  terracottaLight: '#E8845A',
+  charcoal: '#2B2420',
+  muted: '#8C7B72',
+  white: '#FFFFFF',
+  error: '#C0392B',
+  success: '#27AE60',
+  cardBg: '#FFFFFF',
+  border: '#E0D9D0',
+  inputBg: '#F7F3EE',
+  shadow: '#2B2420',
+};
+
+// ─── Custom hook: fade + slide-up mount animation ──────────────────────────
+function useMountAnimation(delay = 0) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(24)).current;
+
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 480,
+        delay,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 480,
+        delay,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  return { opacity, transform: [{ translateY }] };
+}
+
+// ─── Animated Input ───────────────────────────────────────────────────────────
+function AnimatedInput({
+  label,
+  value,
+  onChangeText,
+  editable = true,
+  placeholder = '',
+}: {
+  label: string;
+  value: string;
+  onChangeText?: (t: string) => void;
+  editable?: boolean;
+  placeholder?: string;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const borderColor = useRef(new Animated.Value(0)).current;
+
+  const onFocus = () => {
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 1.01, useNativeDriver: true }),
+      Animated.timing(borderColor, { toValue: 1, duration: 200, useNativeDriver: false }),
+    ]).start();
+  };
+  const onBlur = () => {
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true }),
+      Animated.timing(borderColor, { toValue: 0, duration: 200, useNativeDriver: false }),
+    ]).start();
+  };
+
+  const interpolatedBorder = borderColor.interpolate({
+    inputRange: [0, 1],
+    outputRange: [T.border, T.terracotta],
+  });
+
+  return (
+    <Animated.View style={[inputStyles.group, { transform: [{ scale }] }]}>
+      <Text style={inputStyles.label}>{label}</Text>
+      <Animated.View
+        style={[
+          inputStyles.inputWrap,
+          { borderColor: interpolatedBorder },
+          !editable && inputStyles.disabledWrap,
+        ]}
+      >
+        <TextInput
+          style={[inputStyles.input, !editable && inputStyles.disabledText]}
+          value={value}
+          onChangeText={onChangeText}
+          editable={editable}
+          placeholder={placeholder}
+          placeholderTextColor={T.muted}
+          onFocus={onFocus}
+          onBlur={onBlur}
+        />
+      </Animated.View>
+    </Animated.View>
+  );
+}
+
+const inputStyles = StyleSheet.create({
+  group: { marginBottom: 14 },
+  label: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+    color: T.muted,
+    marginBottom: 6,
+  },
+  inputWrap: {
+    borderWidth: 1.5,
+    borderRadius: 10,
+    backgroundColor: T.inputBg,
+    overflow: 'hidden',
+  },
+  disabledWrap: { backgroundColor: T.sand, borderColor: T.border },
+  input: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: T.charcoal,
+  },
+  disabledText: { color: T.muted },
+});
+
+// ─── Avatar with camera overlay ──────────────────────────────────────────────
+function AvatarPicker({
+  uri,
+  onPick,
+}: {
+  uri: string | null;
+  onPick: (localUri: string) => void;
+}) {
+  const ripple = useRef(new Animated.Value(0)).current;
+
+  const handlePress = async () => {
+    // Animate ripple feedback
+    Animated.sequence([
+      Animated.timing(ripple, { toValue: 1, duration: 150, useNativeDriver: true }),
+      Animated.timing(ripple, { toValue: 0, duration: 150, useNativeDriver: true }),
+    ]).start();
+
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Permission required',
+        'Please allow access to your photo library in Settings to change your profile picture.',
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      onPick(result.assets[0].uri);
+    }
+  };
+
+  const rippleScale = ripple.interpolate({ inputRange: [0, 1], outputRange: [1, 0.92] });
+
+  return (
+    <TouchableOpacity onPress={handlePress} activeOpacity={0.9}>
+      <Animated.View style={[avatarStyles.container, { transform: [{ scale: rippleScale }] }]}>
+        {uri ? (
+          <Image source={{ uri }} style={avatarStyles.image} />
+        ) : (
+          <View style={avatarStyles.placeholder}>
+            <User size={40} color={T.muted} />
+          </View>
+        )}
+        {/* Overlay gradient hint */}
+        <View style={avatarStyles.overlay} />
+        <View style={avatarStyles.cameraBtn}>
+          <Camera size={16} color={T.white} />
+        </View>
+        <Text style={avatarStyles.hint}>Change Photo</Text>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
+
+const avatarStyles = StyleSheet.create({
+  container: {
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'visible',
+  },
+  image: {
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    borderWidth: 3,
+    borderColor: T.white,
+  },
+  placeholder: {
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    backgroundColor: T.sand,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: T.border,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 54,
+    backgroundColor: 'rgba(43,36,32,0.12)',
+  },
+  cameraBtn: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    backgroundColor: T.terracotta,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2.5,
+    borderColor: T.white,
+    shadowColor: T.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  hint: {
+    position: 'absolute',
+    bottom: -22,
+    fontSize: 11,
+    color: T.muted,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+  },
+});
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function AccountScreen() {
   const router = useRouter();
   const { user, signOut, updateProfile } = useAuthStore();
+
   const [isEditing, setIsEditing] = useState(false);
   const [username, setUsername] = useState(user?.username || '');
   const [fullName, setFullName] = useState(user?.full_name || '');
+  const [avatarUri, setAvatarUri] = useState<string | null>(
+    user?.avatar_url || null,
+  );
+
+  // Staggered entrance animations
+  const headerAnim = useMountAnimation(0);
+  const cardAnim = useMountAnimation(120);
+  const formAnim = useMountAnimation(220);
+  const footerAnim = useMountAnimation(320);
+
+  // Edit mode slide animation
+  const editSlide = useRef(new Animated.Value(0)).current;
+  const toggleEdit = (on: boolean) => {
+    setIsEditing(on);
+    Animated.spring(editSlide, {
+      toValue: on ? 1 : 0,
+      useNativeDriver: true,
+      tension: 80,
+      friction: 10,
+    }).start();
+  };
+
+  const handleAvatarPick = (uri: string) => {
+    setAvatarUri(uri);
+    // In a real app you would upload to Supabase Storage here and then call updateProfile
+    // e.g.: const publicUrl = await uploadAvatarToStorage(uri);
+    //       await updateProfile({ avatar_url: publicUrl });
+  };
 
   const handleSave = async () => {
-    const { error } = await updateProfile({
-      username,
-      full_name: fullName,
-    });
-
+    const { error } = await updateProfile({ username, full_name: fullName });
     if (error) {
-      Alert.alert('Error', 'Failed to update profile');
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
     } else {
-      setIsEditing(false);
-      Alert.alert('Success', 'Profile updated successfully');
+      toggleEdit(false);
+      Alert.alert('Saved', 'Your profile has been updated.');
     }
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            await signOut();
-            router.replace('/(auth)/login');
-          },
+    Alert.alert('Log out', 'Are you sure you want to log out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Log out',
+        style: 'destructive',
+        onPress: async () => {
+          await signOut();
+          router.replace('/(auth)/login');
         },
-      ]
-    );
+      },
+    ]);
   };
 
+  const saveButtonScale = editSlide.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.8, 1],
+  });
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <View style={styles.logoContainer}>
+    <SafeAreaView style={styles.root} edges={['top']}>
+      {/* Header */}
+      <Animated.View style={[styles.header, headerAnim]}>
+        <View style={styles.logoRow}>
           <Text style={styles.logoHome}>Home</Text>
           <Text style={styles.logoChef}>Chef</Text>
         </View>
-        <Text style={styles.headerTitle}>My Account</Text>
-      </View>
+        <Text style={styles.screenLabel}>My Account</Text>
+      </Animated.View>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+      >
         {/* Profile Card */}
-        <View style={styles.profileCard}>
-          <View style={styles.avatarContainer}>
-            <Image
-              source={{
-                uri: user?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
-              }}
-              style={styles.avatar}
-            />
-            <TouchableOpacity style={styles.cameraButton}>
-              <Camera size={18} color={Colors.white} />
-            </TouchableOpacity>
+        <Animated.View style={[styles.card, cardAnim]}>
+          <View style={styles.cardAccent} />
+          <View style={styles.avatarRow}>
+            <AvatarPicker uri={avatarUri} onPick={handleAvatarPick} />
           </View>
-          <Text style={styles.profileName}>{user?.username || 'Guest'}</Text>
-          <Text style={styles.profileEmail}>{user?.full_name || 'HomeChef Member'}</Text>
-        </View>
+          <Text style={styles.profileName}>{username || 'Guest'}</Text>
+          <Text style={styles.profileSub}>{fullName || 'HomeChef Member'}</Text>
+        </Animated.View>
 
-        {/* Edit Profile */}
-        <View style={styles.section}>
+        {/* Profile Information */}
+        <Animated.View style={[styles.section, formAnim]}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Profile Information</Text>
             {!isEditing ? (
-              <TouchableOpacity style={styles.editButton} onPress={() => setIsEditing(true)}>
-                <Edit2 size={18} color={Colors.primary} />
-                <Text style={styles.editButtonText}>Edit</Text>
+              <TouchableOpacity
+                style={styles.editBtn}
+                onPress={() => toggleEdit(true)}
+                activeOpacity={0.7}
+              >
+                <Edit2 size={14} color={T.terracotta} />
+                <Text style={styles.editBtnText}>Edit</Text>
               </TouchableOpacity>
             ) : (
-              <View style={styles.editActions}>
-                <TouchableOpacity style={styles.iconButton} onPress={handleSave}>
-                  <Check size={20} color={Colors.success} />
+              <Animated.View
+                style={[styles.editActions, { transform: [{ scale: saveButtonScale }] }]}
+              >
+                <TouchableOpacity style={styles.iconBtn} onPress={handleSave}>
+                  <Check size={18} color={T.success} />
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.iconButton} onPress={() => setIsEditing(false)}>
-                  <X size={20} color={Colors.error} />
+                <TouchableOpacity
+                  style={styles.iconBtn}
+                  onPress={() => toggleEdit(false)}
+                >
+                  <X size={18} color={T.error} />
                 </TouchableOpacity>
-              </View>
+              </Animated.View>
             )}
           </View>
 
-          <View style={styles.form}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Username</Text>
-              <TextInput
-                style={[styles.input, !isEditing && styles.inputDisabled]}
-                value={username}
-                onChangeText={setUsername}
-                editable={isEditing}
-                placeholderTextColor={Colors.gray}
-              />
-            </View>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Full Name</Text>
-              <TextInput
-                style={[styles.input, !isEditing && styles.inputDisabled]}
-                value={fullName}
-                onChangeText={setFullName}
-                editable={isEditing}
-                placeholder="Enter your full name"
-                placeholderTextColor={Colors.gray}
-              />
-            </View>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Phone Number</Text>
-              <TextInput
-                style={[styles.input, styles.inputDisabled]}
-                value={user?.phone || 'Not provided'}
-                editable={false}
-                placeholderTextColor={Colors.gray}
-              />
-            </View>
+          <View style={styles.formCard}>
+            <AnimatedInput
+              label="Username"
+              value={username}
+              onChangeText={setUsername}
+              editable={isEditing}
+              placeholder="Enter username"
+            />
+            <AnimatedInput
+              label="Full Name"
+              value={fullName}
+              onChangeText={setFullName}
+              editable={isEditing}
+              placeholder="Enter your full name"
+            />
+            <AnimatedInput
+              label="Phone Number"
+              value={user?.phone || 'Not provided'}
+              editable={false}
+            />
           </View>
-        </View>
+        </Animated.View>
 
         {/* Logout */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <LogOut size={20} color={Colors.error} />
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
+        <Animated.View style={footerAnim}>
+          <TouchableOpacity
+            style={styles.logoutBtn}
+            onPress={handleLogout}
+            activeOpacity={0.8}
+          >
+            <LogOut size={18} color={T.error} />
+            <Text style={styles.logoutText}>Log Out</Text>
+          </TouchableOpacity>
 
-        {/* App Info */}
-        <View style={styles.appInfo}>
-          <Text style={styles.appVersion}>HomeChef v1.0.0</Text>
-          <Text style={styles.appCopyright}>© 2024 HomeChef Cameroon</Text>
-        </View>
+          <View style={styles.appInfo}>
+            <Text style={styles.appVersion}>HomeChef v1.0.0</Text>
+            <Text style={styles.appCopyright}>© 2024 HomeChef Cameroon</Text>
+          </View>
+        </Animated.View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: T.cream,
   },
+
+  // Header
   header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 24,
+    paddingTop: 8,
+    paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.lightGray,
+    borderBottomColor: T.sand,
+    backgroundColor: T.cream,
   },
-  logoContainer: {
+  logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 2,
   },
   logoHome: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: Colors.logoHome,
+    fontSize: 22,
+    fontWeight: '800',
+    color: T.charcoal,
+    letterSpacing: -0.5,
   },
   logoChef: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: Colors.logoChef,
+    fontSize: 22,
+    fontWeight: '800',
+    color: T.terracotta,
+    letterSpacing: -0.5,
   },
-  headerTitle: {
-    fontSize: 16,
-    color: Colors.gray,
+  screenLabel: {
+    fontSize: 13,
+    color: T.muted,
+    fontWeight: '500',
+    letterSpacing: 0.3,
   },
-  content: {
-    flex: 1,
+
+  scroll: {
     padding: 20,
+    paddingBottom: 48,
   },
-  profileCard: {
-    alignItems: 'center',
-    paddingVertical: 24,
-    backgroundColor: Colors.white,
-    borderRadius: 16,
-    marginBottom: 24,
-    shadowColor: Colors.dark,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  avatarContainer: {
-    position: 'relative',
-    marginBottom: 16,
-  },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-  },
-  cameraButton: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: Colors.primary,
-    padding: 8,
+
+  // Profile Card
+  card: {
+    backgroundColor: T.cardBg,
     borderRadius: 20,
-    borderWidth: 3,
-    borderColor: Colors.white,
+    alignItems: 'center',
+    paddingBottom: 28,
+    marginBottom: 24,
+    overflow: 'hidden',
+    shadowColor: T.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  cardAccent: {
+    width: '100%',
+    height: 72,
+    backgroundColor: T.terracotta,
+    marginBottom: 0,
+  },
+  avatarRow: {
+    marginTop: -54,
+    marginBottom: 28,
+    alignItems: 'center',
   },
   profileName: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: Colors.dark,
+    fontWeight: '800',
+    color: T.charcoal,
+    letterSpacing: -0.3,
     marginBottom: 4,
   },
-  profileEmail: {
-    fontSize: 14,
-    color: Colors.gray,
+  profileSub: {
+    fontSize: 13,
+    color: T.muted,
+    fontWeight: '500',
   },
+
+  // Section
   section: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 14,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.dark,
+    fontSize: 16,
+    fontWeight: '800',
+    color: T.charcoal,
+    letterSpacing: -0.2,
   },
-  editButton: {
+  editBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
+    backgroundColor: '#FDF0EA',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
   },
-  editButtonText: {
-    color: Colors.primary,
-    fontWeight: '600',
+  editBtnText: {
+    color: T.terracotta,
+    fontWeight: '700',
+    fontSize: 13,
   },
   editActions: {
     flexDirection: 'row',
     gap: 8,
   },
-  iconButton: {
-    padding: 4,
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: T.sand,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  form: {
-    backgroundColor: Colors.white,
-    borderRadius: 12,
-    padding: 16,
-    gap: 16,
+
+  formCard: {
+    backgroundColor: T.cardBg,
+    borderRadius: 16,
+    padding: 18,
+    shadowColor: T.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  inputGroup: {
-    gap: 8,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.dark,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: Colors.lightGray,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: Colors.black,
-  },
-  inputDisabled: {
-    backgroundColor: Colors.background,
-    color: Colors.gray,
-  },
-  logoutButton: {
+
+  // Logout
+  logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.white,
-    paddingVertical: 16,
-    borderRadius: 12,
     gap: 8,
-    marginBottom: 24,
+    backgroundColor: T.cardBg,
+    paddingVertical: 16,
+    borderRadius: 14,
+    marginBottom: 28,
+    borderWidth: 1.5,
+    borderColor: '#F5D5D2',
+    shadowColor: T.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   logoutText: {
-    color: Colors.error,
-    fontSize: 16,
-    fontWeight: '600',
+    color: T.error,
+    fontSize: 15,
+    fontWeight: '700',
   },
+
   appInfo: {
     alignItems: 'center',
-    paddingVertical: 16,
+    gap: 3,
   },
   appVersion: {
     fontSize: 12,
-    color: Colors.gray,
-    marginBottom: 4,
+    color: T.muted,
+    fontWeight: '500',
   },
   appCopyright: {
-    fontSize: 12,
-    color: Colors.lightGray,
+    fontSize: 11,
+    color: T.border,
   },
 });

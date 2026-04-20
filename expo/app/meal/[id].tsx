@@ -34,6 +34,8 @@ const { width, height } = Dimensions.get('window');
 
 const HERO_HEIGHT = 320;
 const HEADER_HEIGHT = 60;
+const VIDEO_WIDTH = width - 32;
+const VIDEO_HEIGHT = Math.round(VIDEO_WIDTH * (9 / 16)); // 16:9 aspect ratio
 
 // ─── Pill badge ──────────────────────────────────────────────────────────────
 function Badge({ label, color = Colors.primary }: { label: string; color?: string }) {
@@ -371,10 +373,6 @@ const recipeStyles = StyleSheet.create({
 
 // ─── Helper: extract YouTube video ID ────────────────────────────────────────
 function extractYouTubeId(url: string): string {
-  // Handles formats:
-  //   https://www.youtube.com/watch?v=VIDEO_ID
-  //   https://youtu.be/VIDEO_ID
-  //   https://www.youtube.com/shorts/VIDEO_ID
   const patterns = [
     /[?&]v=([^&#]+)/,
     /youtu\.be\/([^?&#]+)/,
@@ -384,7 +382,6 @@ function extractYouTubeId(url: string): string {
     const match = url.match(pattern);
     if (match) return match[1];
   }
-  // Fallback: assume the url itself is already a bare video ID
   return url;
 }
 
@@ -403,12 +400,12 @@ function VideoRecipe({ meal }: { meal: Meal }) {
     <View style={videoStyles.container}>
       <View style={videoStyles.videoWrapper}>
         <YoutubeIframe
-          height={220}
-          width={width - 32}
+          height={VIDEO_HEIGHT}
+          width={VIDEO_WIDTH}
           videoId={videoId}
           play={playing}
           onChangeState={onStateChange}
-          webViewStyle={{ borderRadius: 16 }}
+          webViewStyle={{ flex: 1 }}
           webViewProps={{
             allowsFullscreenVideo: true,
             allowsInlineMediaPlayback: true,
@@ -450,6 +447,8 @@ function VideoRecipe({ meal }: { meal: Meal }) {
 const videoStyles = StyleSheet.create({
   container: { paddingHorizontal: 16 },
   videoWrapper: {
+    width: VIDEO_WIDTH,
+    height: VIDEO_HEIGHT,
     borderRadius: 16,
     overflow: 'hidden',
     marginBottom: 14,
@@ -459,6 +458,7 @@ const videoStyles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 6,
     backgroundColor: Colors.dark,
+    alignSelf: 'center',
   },
   playBtn: {
     flexDirection: 'row',
