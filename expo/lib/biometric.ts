@@ -1,6 +1,5 @@
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const BIOMETRIC_CREDENTIALS_KEY = 'biometric_credentials';
 const BIOMETRIC_ENABLED_KEY = 'biometric_enabled';
@@ -84,20 +83,6 @@ export const BiometricAuth = {
    */
   loadCredentials: async (): Promise<BiometricCredentials | null> => {
     const raw = await SecureStore.getItemAsync(BIOMETRIC_CREDENTIALS_KEY);
-   * Save credentials securely (protected by biometrics on device)
-   * In production, use expo-secure-store instead of AsyncStorage
-   */
-  saveCredentials: async (credentials: BiometricCredentials): Promise<void> => {
-    const encrypted = JSON.stringify(credentials);
-    await AsyncStorage.setItem(BIOMETRIC_CREDENTIALS_KEY, encrypted);
-    await AsyncStorage.setItem(BIOMETRIC_ENABLED_KEY, 'true');
-  },
-
-  /**
-   * Load saved credentials (call authenticate() before this)
-   */
-  loadCredentials: async (): Promise<BiometricCredentials | null> => {
-    const raw = await AsyncStorage.getItem(BIOMETRIC_CREDENTIALS_KEY);
     if (!raw) return null;
     return JSON.parse(raw) as BiometricCredentials;
   },
@@ -107,10 +92,6 @@ export const BiometricAuth = {
    */
   isEnabled: async (): Promise<boolean> => {
     const value = await SecureStore.getItemAsync(BIOMETRIC_ENABLED_KEY);
-   * Check if biometric login is enabled for this user
-   */
-  isEnabled: async (): Promise<boolean> => {
-    const value = await AsyncStorage.getItem(BIOMETRIC_ENABLED_KEY);
     return value === 'true';
   },
 
@@ -120,12 +101,5 @@ export const BiometricAuth = {
   disable: async (): Promise<void> => {
     await SecureStore.deleteItemAsync(BIOMETRIC_CREDENTIALS_KEY);
     await SecureStore.setItemAsync(BIOMETRIC_ENABLED_KEY, 'false');
-  },
-};
-   * Disable biometric login and clear stored credentials
-   */
-  disable: async (): Promise<void> => {
-    await AsyncStorage.removeItem(BIOMETRIC_CREDENTIALS_KEY);
-    await AsyncStorage.setItem(BIOMETRIC_ENABLED_KEY, 'false');
   },
 };
