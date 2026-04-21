@@ -9,6 +9,7 @@ interface CookingState {
   history: CookingHistory[];
   userRecipes: UserRecipe[];
   addToHistory: (entry: CookingHistory) => void;
+  clearHistory: () => void;
   addUserRecipe: (recipe: UserRecipe) => void;
   removeUserRecipe: (id: string) => void;
   updateUserRecipe: (id: string, updates: Partial<UserRecipe>) => void;
@@ -24,6 +25,8 @@ export const useCookingStore = create<CookingState>()(
         set((state) => ({
           history: [entry, ...state.history],
         })),
+
+      clearHistory: () => set({ history: [] }),
 
       addUserRecipe: (recipe) =>
         set((state) => ({

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,14 @@ import { Clock, Users, ChefHat, TrendingUp } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { useCookingStore, type CookingHistory } from '@/stores/cookingStore';
 
+// ─── Currency Config ──────────────────────────────────────────────────────────
+
+const CURRENCIES = [
+  { label: 'FCFA', symbol: '',  rate: 1,        decimals: 0 },
+  { label: 'EUR',  symbol: '€', rate: 0.001524, decimals: 2 }, // Fixed peg: 1 EUR = 655.957 XAF
+  { label: 'USD',  symbol: '$', rate: 0.001797, decimals: 2 }, // Mid-market: Apr 2026
+] as const;
+
 // ─── Animated Stat Card ──────────────────────────────────────────────────────
 
 function StatCard({
@@ -26,7 +34,7 @@ function StatCard({
   label: string;
   delay?: number;
 }) {
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim  = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(24)).current;
   const scaleAnim = useRef(new Animated.Value(0.92)).current;
 
@@ -75,17 +83,21 @@ function StatCard({
 // ─── Animated History Card ───────────────────────────────────────────────────
 
 function HistoryCard({ item, index }: { item: CookingHistory; index: number }) {
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(40)).current;
+  const fadeAnim   = useRef(new Animated.Value(0)).current;
+  const slideAnim  = useRef(new Animated.Value(40)).current;
   const pressScale = useRef(new Animated.Value(1)).current;
 
-  const cookedDate = new Date(item.cookedAt);
+  const [currencyIdx, setCurrencyIdx] = useState(0);
+  const costFade = useRef(new Animated.Value(1)).current;
+
+  const cookedDate    = new Date(item.cookedAt);
   const formattedDate = cookedDate.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   });
 
+  // Entrance animation
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -104,23 +116,47 @@ function HistoryCard({ item, index }: { item: CookingHistory; index: number }) {
     ]).start();
   }, []);
 
-  const handlePressIn = () => {
+  // Currency cycle every 5 seconds with fade transition
+  useEffect(() => {
+    const interval = setInterval(() => {
+      Animated.timing(costFade, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(() => {
+        setCurrencyIdx(prev => (prev + 1) % CURRENCIES.length);
+        Animated.timing(costFade, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }).start();
+      });
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handlePressIn = () =>
     Animated.spring(pressScale, {
       toValue: 0.97,
       useNativeDriver: true,
       tension: 200,
       friction: 10,
     }).start();
-  };
 
-  const handlePressOut = () => {
+  const handlePressOut = () =>
     Animated.spring(pressScale, {
       toValue: 1,
       useNativeDriver: true,
       tension: 200,
       friction: 10,
     }).start();
-  };
+
+  const currency    = CURRENCIES[currencyIdx];
+  const converted   = item.totalCost * currency.rate;
+  const displayCost =
+    currency.label === 'FCFA'
+      ? `${converted.toLocaleString()} FCFA`
+      : `${currency.symbol}${converted.toFixed(currency.decimals)}`;
 
   return (
     <Animated.View
@@ -141,6 +177,7 @@ function HistoryCard({ item, index }: { item: CookingHistory; index: number }) {
           <Image source={{ uri: item.mealImage }} style={styles.historyImage} />
           <View style={styles.imageOverlay} />
         </View>
+
         <View style={styles.historyContent}>
           <Text style={styles.historyMealName} numberOfLines={1}>
             {item.mealName}
@@ -158,11 +195,9 @@ function HistoryCard({ item, index }: { item: CookingHistory; index: number }) {
             </View>
           </View>
 
-          <View style={styles.costBadge}>
-            <Text style={styles.costText}>
-              {item.totalCost.toLocaleString()} FCFA
-            </Text>
-          </View>
+          <Animated.View style={[styles.costBadge, { opacity: costFade }]}>
+            <Text style={styles.costText}>{displayCost}</Text>
+          </Animated.View>
         </View>
       </Pressable>
     </Animated.View>
@@ -173,7 +208,7 @@ function HistoryCard({ item, index }: { item: CookingHistory; index: number }) {
 
 function EmptyState() {
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim  = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -219,12 +254,12 @@ function EmptyState() {
 export default function ExperienceScreen() {
   const { history } = useCookingStore();
 
-  const headerFade = useRef(new Animated.Value(0)).current;
+  const headerFade  = useRef(new Animated.Value(0)).current;
   const headerSlide = useRef(new Animated.Value(-16)).current;
 
   const totalCooked = history.length;
-  const totalSpent = history.reduce((sum, item) => sum + item.totalCost, 0);
-  const totalTime = history.reduce((sum, item) => sum + item.totalTime, 0);
+  const totalSpent  = history.reduce((sum, item) => sum + item.totalCost, 0);
+  const totalTime   = history.reduce((sum, item) => sum + item.totalTime, 0);
 
   useEffect(() => {
     Animated.parallel([
@@ -284,9 +319,7 @@ export default function ExperienceScreen() {
             delay={160}
           />
           <StatCard
-            icon={
-              <Text style={styles.currencyIcon}>₣</Text>
-            }
+            icon={<Text style={styles.currencyIcon}>₣</Text>}
             value={`${(totalSpent / 1000).toFixed(1)}k`}
             label="FCFA Spent"
             delay={240}

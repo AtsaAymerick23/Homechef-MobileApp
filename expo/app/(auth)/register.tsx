@@ -370,7 +370,7 @@ export default function RegisterScreen() {
               <Text style={s.heroSub}>Share recipes, discover Cameroonian flavours, and grow your kitchen skills.</Text>
 
               <View style={s.tipCard}>
-                <Text style={s.tipLabel}>DID YOU KNOW?</Text>
+                <Text style={s.tipLabel}>?</Text>
                 <Text style={s.tipText}>Ndolé is Cameroon's beloved national dish — bitterleaf stew with peanuts & fish.</Text>
               </View>
             </Animated.View>

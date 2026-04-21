@@ -373,14 +373,7 @@ function VideoRecipe({ meal }: { meal: Meal }) {
         />
       </View>
 
-      <TouchableOpacity
-        style={[videoStyles.playBtn, playing && videoStyles.pauseBtn]}
-        onPress={handleTogglePlay}
-        activeOpacity={0.85}
-      >
-        {playing ? <Pause size={22} color={Colors.white} /> : <Play size={22} color={Colors.white} />}
-        <Text style={videoStyles.playBtnText}>{playing ? 'Pause' : 'Play'}</Text>
-      </TouchableOpacity>
+
 
       <View style={videoStyles.infoCard}>
         <View style={videoStyles.infoHeader}>
