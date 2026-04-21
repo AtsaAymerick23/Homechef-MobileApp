@@ -29,15 +29,16 @@ import { Accelerometer } from 'expo-sensors';
 import YoutubeIframe from 'react-native-youtube-iframe';
 import { Colors } from '@/constants/colors';
 import { meals, type Meal } from '@/constants/meals';
+import { soundManager } from '@/lib/soundManager';
 
 const { width, height } = Dimensions.get('window');
 
 const HERO_HEIGHT = 320;
 const HEADER_HEIGHT = 60;
 const VIDEO_WIDTH = width - 32;
-const VIDEO_HEIGHT = Math.round(VIDEO_WIDTH * (9 / 16)); // 16:9 aspect ratio
+const VIDEO_HEIGHT = Math.round(VIDEO_WIDTH * (9 / 16));
 
-// ─── Pill badge ──────────────────────────────────────────────────────────────
+// ─── Pill badge ───────────────────────────────────────────────────────────────
 function Badge({ label, color = Colors.primary }: { label: string; color?: string }) {
   return (
     <View style={[badgeStyles.pill, { backgroundColor: color + '22', borderColor: color + '55' }]}>
@@ -57,33 +58,15 @@ const badgeStyles = StyleSheet.create({
   text: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4 },
 });
 
-// ─── Stat chip ───────────────────────────────────────────────────────────────
-function StatChip({
-  icon,
-  value,
-  delay,
-}: {
-  icon: React.ReactNode;
-  value: string;
-  delay: number;
-}) {
+// ─── Stat chip ────────────────────────────────────────────────────────────────
+function StatChip({ icon, value, delay }: { icon: React.ReactNode; value: string; delay: number }) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(16)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 400,
-        delay,
-        useNativeDriver: true,
-      }),
-      Animated.spring(translateY, {
-        toValue: 0,
-        delay,
-        useNativeDriver: true,
-        damping: 14,
-      }),
+      Animated.timing(opacity, { toValue: 1, duration: 400, delay, useNativeDriver: true }),
+      Animated.spring(translateY, { toValue: 0, delay, useNativeDriver: true, damping: 14 }),
     ]).start();
   }, []);
 
@@ -123,20 +106,13 @@ function WrittenRecipe({ meal }: { meal: Meal }) {
   useEffect(() => { currentStepRef.current = currentStep; }, [currentStep]);
   useEffect(() => { lastShakeRef.current = lastShake; }, [lastShake]);
 
-  // Refs to keep accelerometer callback always reading latest values
-  // without needing to re-subscribe on every state change
-  const currentStepRef = useRef(currentStep);
-  const lastShakeRef = useRef(lastShake);
-
-  // Keep refs in sync with state
-  useEffect(() => { currentStepRef.current = currentStep; }, [currentStep]);
-  useEffect(() => { lastShakeRef.current = lastShake; }, [lastShake]);
-
-  // Card slide animation
   const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const animateStep = useCallback((next: number) => {
+    // ── Play step sound on every step change ──────────────────────────────────
+    soundManager.playSFX('step_complete');
+
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 0, duration: 120, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: -30, duration: 120, useNativeDriver: true }),
@@ -151,7 +127,6 @@ function WrittenRecipe({ meal }: { meal: Meal }) {
     });
   }, [fadeAnim, slideAnim]);
 
-  // Subscribe once — refs keep the callback fresh without re-subscribing
   useEffect(() => {
     if (Platform.OS === 'web') return;
 
@@ -164,7 +139,6 @@ function WrittenRecipe({ meal }: { meal: Meal }) {
         const now = Date.now();
 
         if (acceleration > 1.8 && now - lastShakeRef.current > 1000) {
-          // Update ref immediately so rapid shakes are debounced correctly
           lastShakeRef.current = now;
           setLastShake(now);
 
@@ -179,17 +153,12 @@ function WrittenRecipe({ meal }: { meal: Meal }) {
     subscribe();
     return () => subscription?.remove();
   }, []);
-  }, []); // Empty deps — refs keep values fresh, no re-subscribe needed
 
   const progress = (currentStep + 1) / meal.instructions.length;
   const progressAnim = useRef(new Animated.Value(progress)).current;
 
   useEffect(() => {
-    Animated.spring(progressAnim, {
-      toValue: progress,
-      damping: 16,
-      useNativeDriver: false,
-    }).start();
+    Animated.spring(progressAnim, { toValue: progress, damping: 16, useNativeDriver: false }).start();
   }, [currentStep]);
 
   return (
@@ -220,10 +189,7 @@ function WrittenRecipe({ meal }: { meal: Meal }) {
       </View>
 
       <Animated.View
-        style={[
-          recipeStyles.stepCard,
-          { opacity: fadeAnim, transform: [{ translateX: slideAnim }] },
-        ]}
+        style={[recipeStyles.stepCard, { opacity: fadeAnim, transform: [{ translateX: slideAnim }] }]}
       >
         <View style={recipeStyles.stepBadge}>
           <Text style={recipeStyles.stepBadgeText}>Step {currentStep + 1}</Text>
@@ -254,9 +220,7 @@ function WrittenRecipe({ meal }: { meal: Meal }) {
           disabled={currentStep === meal.instructions.length - 1}
           activeOpacity={0.7}
         >
-          <Text style={[recipeStyles.navBtnText, recipeStyles.navBtnTextPrimary]}>
-            Next →
-          </Text>
+          <Text style={[recipeStyles.navBtnText, recipeStyles.navBtnTextPrimary]}>Next →</Text>
         </TouchableOpacity>
       </View>
 
@@ -302,11 +266,7 @@ const recipeStyles = StyleSheet.create({
   },
   shakeIcon: { fontSize: 18 },
   shakeText: { fontSize: 13, color: Colors.primary, fontWeight: '600', flex: 1 },
-  progressRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
+  progressRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   progressLabel: { fontSize: 13, color: Colors.gray, fontWeight: '600' },
   progressPct: { fontSize: 13, color: Colors.primary, fontWeight: '700' },
   progressTrack: {
@@ -316,11 +276,7 @@ const recipeStyles = StyleSheet.create({
     marginBottom: 20,
     overflow: 'hidden',
   },
-  progressFill: {
-    height: '100%',
-    backgroundColor: Colors.primary,
-    borderRadius: 10,
-  },
+  progressFill: { height: '100%', backgroundColor: Colors.primary, borderRadius: 10 },
   stepCard: {
     backgroundColor: Colors.white,
     borderRadius: 16,
@@ -374,23 +330,13 @@ const recipeStyles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 1,
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.primary,
-    marginRight: 12,
-  },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.primary, marginRight: 12 },
   ingredientText: { fontSize: 14, color: Colors.dark, flex: 1 },
 });
 
 // ─── Helper: extract YouTube video ID ────────────────────────────────────────
 function extractYouTubeId(url: string): string {
-  const patterns = [
-    /[?&]v=([^&#]+)/,
-    /youtu\.be\/([^?&#]+)/,
-    /\/shorts\/([^?&#]+)/,
-  ];
+  const patterns = [/[?&]v=([^&#]+)/, /youtu\.be\/([^?&#]+)/, /\/shorts\/([^?&#]+)/];
   for (const pattern of patterns) {
     const match = url.match(pattern);
     if (match) return match[1];
@@ -404,10 +350,14 @@ function VideoRecipe({ meal }: { meal: Meal }) {
   const videoId = extractYouTubeId(meal.videoUrl);
 
   const onStateChange = useCallback((state: string) => {
-    if (state === 'ended') {
-      setPlaying(false);
-    }
+    if (state === 'ended') setPlaying(false);
   }, []);
+
+  const handleTogglePlay = () => {
+    // ── Tap sound on play/pause ───────────────────────────────────────────────
+    soundManager.playSFX('button_tap');
+    setPlaying((prev) => !prev);
+  };
 
   return (
     <View style={videoStyles.container}>
@@ -419,23 +369,16 @@ function VideoRecipe({ meal }: { meal: Meal }) {
           play={playing}
           onChangeState={onStateChange}
           webViewStyle={{ flex: 1 }}
-          webViewProps={{
-            allowsFullscreenVideo: true,
-            allowsInlineMediaPlayback: true,
-          }}
+          webViewProps={{ allowsFullscreenVideo: true, allowsInlineMediaPlayback: true }}
         />
       </View>
 
       <TouchableOpacity
         style={[videoStyles.playBtn, playing && videoStyles.pauseBtn]}
-        onPress={() => setPlaying((prev) => !prev)}
+        onPress={handleTogglePlay}
         activeOpacity={0.85}
       >
-        {playing ? (
-          <Pause size={22} color={Colors.white} />
-        ) : (
-          <Play size={22} color={Colors.white} />
-        )}
+        {playing ? <Pause size={22} color={Colors.white} /> : <Play size={22} color={Colors.white} />}
         <Text style={videoStyles.playBtnText}>{playing ? 'Pause' : 'Play'}</Text>
       </TouchableOpacity>
 
@@ -488,14 +431,8 @@ const videoStyles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  pauseBtn: {
-    backgroundColor: Colors.dark,
-  },
-  playBtnText: {
-    color: Colors.white,
-    fontSize: 15,
-    fontWeight: '700',
-  },
+  pauseBtn: { backgroundColor: Colors.dark },
+  playBtnText: { color: Colors.white, fontSize: 15, fontWeight: '700' },
   infoCard: {
     backgroundColor: Colors.white,
     padding: 18,
@@ -531,6 +468,15 @@ export default function MealDetailScreen() {
 
   const meal = meals.find((m) => m.id === id);
 
+  // ── Background audio: kitchen ambience while browsing the recipe ─────────────
+  useEffect(() => {
+    soundManager.playBackground('kitchen');
+    // Stop background when leaving this screen
+    return () => {
+      soundManager.stopBackground();
+    };
+  }, []);
+
   const heroTranslate = scrollY.interpolate({
     inputRange: [-100, 0, HERO_HEIGHT],
     outputRange: [50, 0, -HERO_HEIGHT * 0.4],
@@ -538,6 +484,8 @@ export default function MealDetailScreen() {
   });
 
   const handleLike = () => {
+    // ── Tap + visual pop ──────────────────────────────────────────────────────
+    soundManager.playSFX('button_tap');
     setLiked((v) => !v);
     Animated.sequence([
       Animated.spring(heartScale, { toValue: 1.4, damping: 6, useNativeDriver: true }),
@@ -546,6 +494,8 @@ export default function MealDetailScreen() {
   };
 
   const handleCook = () => {
+    // ── Cooking start sound fires before navigating ───────────────────────────
+    soundManager.playSFX('cooking_start');
     Animated.sequence([
       Animated.timing(cookBtnScale, { toValue: 0.95, duration: 100, useNativeDriver: true }),
       Animated.spring(cookBtnScale, { toValue: 1, damping: 10, useNativeDriver: true }),
@@ -555,6 +505,8 @@ export default function MealDetailScreen() {
   };
 
   const switchTab = (tab: 'written' | 'video') => {
+    // ── Tab tap sound ─────────────────────────────────────────────────────────
+    soundManager.playSFX('button_tap');
     setActiveTab(tab);
     Animated.spring(tabIndicatorX, {
       toValue: tab === 'written' ? 0 : 1,
@@ -591,7 +543,13 @@ export default function MealDetailScreen() {
         ]}
       >
         <SafeAreaView edges={['top']} style={styles.stickyHeaderInner}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => {
+              soundManager.playSFX('button_tap');
+              router.back();
+            }}
+          >
             <ChevronLeft size={22} color={Colors.dark} />
           </TouchableOpacity>
           <Animated.Text
@@ -656,9 +614,7 @@ export default function MealDetailScreen() {
         <View style={styles.descSection}>
           <Text style={styles.descText}>{meal.description}</Text>
           <View style={styles.costBadge}>
-            <Text style={styles.costText}>
-              💰 {meal.costPerServing.toLocaleString()} FCFA / serving
-            </Text>
+            <Text style={styles.costText}>💰 {meal.costPerServing.toLocaleString()} FCFA / serving</Text>
           </View>
         </View>
 
@@ -676,21 +632,13 @@ export default function MealDetailScreen() {
               },
             ]}
           />
-          <TouchableOpacity
-            style={styles.tabBtn}
-            onPress={() => switchTab('written')}
-            activeOpacity={0.8}
-          >
+          <TouchableOpacity style={styles.tabBtn} onPress={() => switchTab('written')} activeOpacity={0.8}>
             <ChefHat size={16} color={activeTab === 'written' ? Colors.white : Colors.gray} />
             <Text style={[styles.tabText, activeTab === 'written' && styles.tabTextActive]}>
               Written Recipe
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.tabBtn}
-            onPress={() => switchTab('video')}
-            activeOpacity={0.8}
-          >
+          <TouchableOpacity style={styles.tabBtn} onPress={() => switchTab('video')} activeOpacity={0.8}>
             <Play size={16} color={activeTab === 'video' ? Colors.white : Colors.gray} />
             <Text style={[styles.tabText, activeTab === 'video' && styles.tabTextActive]}>
               Video Recipe
@@ -773,22 +721,9 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  heroImage: {
-    width,
-    height: HERO_HEIGHT + 60,
-    position: 'absolute',
-    top: -30,
-  },
-  heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.38)',
-  },
-  heroContent: {
-    position: 'absolute',
-    bottom: 24,
-    left: 20,
-    right: 20,
-  },
+  heroImage: { width, height: HERO_HEIGHT + 60, position: 'absolute', top: -30 },
+  heroOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.38)' },
+  heroContent: { position: 'absolute', bottom: 24, left: 20, right: 20 },
   tagRow: { flexDirection: 'row', marginBottom: 10 },
   heroTitle: {
     fontSize: 28,
@@ -805,16 +740,8 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 4,
   },
-  descSection: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-  },
-  descText: {
-    fontSize: 14,
-    color: '#555',
-    lineHeight: 22,
-    marginBottom: 14,
-  },
+  descSection: { paddingHorizontal: 16, paddingVertical: 16 },
+  descText: { fontSize: 14, color: '#555', lineHeight: 22, marginBottom: 14 },
   costBadge: {
     alignSelf: 'flex-start',
     backgroundColor: Colors.primary + '15',
@@ -851,17 +778,10 @@ const styles = StyleSheet.create({
     gap: 6,
     zIndex: 1,
   },
-  tabText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.gray,
-  },
+  tabText: { fontSize: 13, fontWeight: '700', color: Colors.gray },
   tabTextActive: { color: Colors.white },
   tabContent: { marginBottom: 4 },
-  cookSection: {
-    paddingHorizontal: 16,
-    paddingVertical: 24,
-  },
+  cookSection: { paddingHorizontal: 16, paddingVertical: 24 },
   cookBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -876,10 +796,5 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     elevation: 6,
   },
-  cookBtnText: {
-    color: Colors.white,
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-  },
+  cookBtnText: { color: Colors.white, fontSize: 16, fontWeight: '800', letterSpacing: 0.3 },
 });

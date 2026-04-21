@@ -140,9 +140,9 @@ export default function HomeScreen() {
               <FeaturedMeal meal={featuredMeal} onPress={() => handleMealPress(featuredMeal.id)} />
             </View>
 
-            {/* Did You Know */}
+            {/*  */}
             <View style={styles.factCard}>
-              <Text style={styles.factLabel}>Did You Know?</Text>
+              <Text style={styles.factLabel}>?</Text>
               <Text style={styles.factText}>{randomFact}</Text>
             </View>
 
