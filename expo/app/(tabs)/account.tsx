@@ -11,13 +11,16 @@ import {
   Animated,
   Easing,
   Platform,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LogOut, Camera, Edit2, Check, X, User } from 'lucide-react-native';
+import { LogOut, Camera, Edit2, Check, X, User, Volume2, VolumeX, Music, Music2 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Colors } from '@/constants/colors';
 import { useAuthStore } from '@/stores/authStore';
+import { useSoundStore } from '@/stores/soundStore';
+import { soundManager } from '@/lib/soundManager';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const T = {
@@ -36,7 +39,7 @@ const T = {
   shadow: '#2B2420',
 };
 
-// ─── Custom hook: fade + slide-up mount animation ──────────────────────────
+// ─── Custom hook: fade + slide-up mount animation ─────────────────────────────
 function useMountAnimation(delay = 0) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(24)).current;
@@ -149,18 +152,11 @@ const inputStyles = StyleSheet.create({
   disabledText: { color: T.muted },
 });
 
-// ─── Avatar with camera overlay ──────────────────────────────────────────────
-function AvatarPicker({
-  uri,
-  onPick,
-}: {
-  uri: string | null;
-  onPick: (localUri: string) => void;
-}) {
+// ─── Avatar with camera overlay ───────────────────────────────────────────────
+function AvatarPicker({ uri, onPick }: { uri: string | null; onPick: (localUri: string) => void }) {
   const ripple = useRef(new Animated.Value(0)).current;
 
   const handlePress = async () => {
-    // Animate ripple feedback
     Animated.sequence([
       Animated.timing(ripple, { toValue: 1, duration: 150, useNativeDriver: true }),
       Animated.timing(ripple, { toValue: 0, duration: 150, useNativeDriver: true }),
@@ -168,10 +164,7 @@ function AvatarPicker({
 
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert(
-        'Permission required',
-        'Please allow access to your photo library in Settings to change your profile picture.',
-      );
+      Alert.alert('Permission required', 'Please allow access to your photo library in Settings.');
       return;
     }
 
@@ -199,7 +192,6 @@ function AvatarPicker({
             <User size={40} color={T.muted} />
           </View>
         )}
-        {/* Overlay gradient hint */}
         <View style={avatarStyles.overlay} />
         <View style={avatarStyles.cameraBtn}>
           <Camera size={16} color={T.white} />
@@ -219,13 +211,7 @@ const avatarStyles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'visible',
   },
-  image: {
-    width: 108,
-    height: 108,
-    borderRadius: 54,
-    borderWidth: 3,
-    borderColor: T.white,
-  },
+  image: { width: 108, height: 108, borderRadius: 54, borderWidth: 3, borderColor: T.white },
   placeholder: {
     width: 108,
     height: 108,
@@ -269,25 +255,185 @@ const avatarStyles = StyleSheet.create({
   },
 });
 
+// ─── Volume Slider (custom — no external dep) ─────────────────────────────────
+function VolumeSlider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const trackWidth = useRef(0);
+  const fillAnim = useRef(new Animated.Value(value)).current;
+
+  // Keep fill in sync when value changes from outside
+  React.useEffect(() => {
+    Animated.spring(fillAnim, { toValue: value, damping: 18, useNativeDriver: false }).start();
+  }, [value]);
+
+  return (
+    <View style={sliderStyles.row}>
+      <VolumeX size={16} color={T.muted} />
+      <View
+        style={sliderStyles.track}
+        onLayout={(e) => { trackWidth.current = e.nativeEvent.layout.width; }}
+      >
+        {/* Filled portion */}
+        <Animated.View
+          style={[
+            sliderStyles.fill,
+            {
+              width: fillAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: ['0%', '100%'],
+              }),
+            },
+          ]}
+        />
+        {/* 5 discrete step buttons */}
+        {[0, 0.25, 0.5, 0.75, 1].map((step) => (
+          <TouchableOpacity
+            key={step}
+            style={[sliderStyles.step, { left: `${step * 100}%` as any }]}
+            onPress={() => onChange(step)}
+            activeOpacity={0.7}
+            hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+          >
+            <View
+              style={[
+                sliderStyles.dot,
+                value >= step && sliderStyles.dotActive,
+              ]}
+            />
+          </TouchableOpacity>
+        ))}
+      </View>
+      <Volume2 size={16} color={T.terracotta} />
+    </View>
+  );
+}
+
+const sliderStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 4,
+  },
+  track: {
+    flex: 1,
+    height: 6,
+    backgroundColor: T.sand,
+    borderRadius: 3,
+    overflow: 'visible',
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  fill: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: T.terracotta,
+    borderRadius: 3,
+  },
+  step: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: -6,
+  },
+  dot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: T.border,
+    borderWidth: 2,
+    borderColor: T.white,
+  },
+  dotActive: {
+    backgroundColor: T.terracotta,
+  },
+});
+
+// ─── Sound Row (toggle row inside the sound card) ─────────────────────────────
+function SoundRow({
+  icon,
+  label,
+  description,
+  value,
+  onToggle,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  description: string;
+  value: boolean;
+  onToggle: () => void;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const handleToggle = () => {
+    soundManager.playSFX('button_tap');
+    Animated.sequence([
+      Animated.timing(scale, { toValue: 0.97, duration: 80, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, damping: 12, useNativeDriver: true }),
+    ]).start();
+    onToggle();
+  };
+
+  return (
+    <Animated.View style={[soundStyles.row, { transform: [{ scale }] }]}>
+      <View style={soundStyles.rowIcon}>{icon}</View>
+      <View style={soundStyles.rowText}>
+        <Text style={soundStyles.rowLabel}>{label}</Text>
+        <Text style={soundStyles.rowDesc}>{description}</Text>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={handleToggle}
+        trackColor={{ false: T.border, true: T.terracottaLight }}
+        thumbColor={value ? T.terracotta : T.sand}
+        ios_backgroundColor={T.border}
+      />
+    </Animated.View>
+  );
+}
+
+const soundStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    gap: 12,
+  },
+  rowIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#FDF0EA',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowText: { flex: 1 },
+  rowLabel: { fontSize: 14, fontWeight: '700', color: T.charcoal, marginBottom: 2 },
+  rowDesc: { fontSize: 12, color: T.muted, lineHeight: 16 },
+  divider: { height: 1, backgroundColor: T.sand, marginLeft: 50 },
+  volumeBlock: { paddingBottom: 8, paddingLeft: 50, paddingRight: 4 },
+  volumeLabel: { fontSize: 11, fontWeight: '700', color: T.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 10 },
+});
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function AccountScreen() {
   const router = useRouter();
   const { user, signOut, updateProfile } = useAuthStore();
+  const { sfxEnabled, bgEnabled, bgVolume, toggleSFX, toggleBG, setBGVolume } = useSoundStore();
 
   const [isEditing, setIsEditing] = useState(false);
   const [username, setUsername] = useState(user?.username || '');
   const [fullName, setFullName] = useState(user?.full_name || '');
-  const [avatarUri, setAvatarUri] = useState<string | null>(
-    user?.avatar_url || null,
-  );
+  const [avatarUri, setAvatarUri] = useState<string | null>(user?.avatar_url || null);
 
   // Staggered entrance animations
-  const headerAnim = useMountAnimation(0);
-  const cardAnim = useMountAnimation(120);
-  const formAnim = useMountAnimation(220);
-  const footerAnim = useMountAnimation(320);
+  const headerAnim  = useMountAnimation(0);
+  const cardAnim    = useMountAnimation(120);
+  const formAnim    = useMountAnimation(220);
+  const soundAnim   = useMountAnimation(300);   // ← new sound section
+  const footerAnim  = useMountAnimation(380);
 
-  // Edit mode slide animation
   const editSlide = useRef(new Animated.Value(0)).current;
   const toggleEdit = (on: boolean) => {
     setIsEditing(on);
@@ -299,12 +445,7 @@ export default function AccountScreen() {
     }).start();
   };
 
-  const handleAvatarPick = (uri: string) => {
-    setAvatarUri(uri);
-    // In a real app you would upload to Supabase Storage here and then call updateProfile
-    // e.g.: const publicUrl = await uploadAvatarToStorage(uri);
-    //       await updateProfile({ avatar_url: publicUrl });
-  };
+  const handleAvatarPick = (uri: string) => setAvatarUri(uri);
 
   const handleSave = async () => {
     const { error } = await updateProfile({ username, full_name: fullName });
@@ -330,10 +471,7 @@ export default function AccountScreen() {
     ]);
   };
 
-  const saveButtonScale = editSlide.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.8, 1],
-  });
+  const saveButtonScale = editSlide.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] });
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -346,10 +484,8 @@ export default function AccountScreen() {
         <Text style={styles.screenLabel}>My Account</Text>
       </Animated.View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
-      >
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+
         {/* Profile Card */}
         <Animated.View style={[styles.card, cardAnim]}>
           <View style={styles.cardAccent} />
@@ -365,25 +501,16 @@ export default function AccountScreen() {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Profile Information</Text>
             {!isEditing ? (
-              <TouchableOpacity
-                style={styles.editBtn}
-                onPress={() => toggleEdit(true)}
-                activeOpacity={0.7}
-              >
+              <TouchableOpacity style={styles.editBtn} onPress={() => toggleEdit(true)} activeOpacity={0.7}>
                 <Edit2 size={14} color={T.terracotta} />
                 <Text style={styles.editBtnText}>Edit</Text>
               </TouchableOpacity>
             ) : (
-              <Animated.View
-                style={[styles.editActions, { transform: [{ scale: saveButtonScale }] }]}
-              >
+              <Animated.View style={[styles.editActions, { transform: [{ scale: saveButtonScale }] }]}>
                 <TouchableOpacity style={styles.iconBtn} onPress={handleSave}>
                   <Check size={18} color={T.success} />
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.iconBtn}
-                  onPress={() => toggleEdit(false)}
-                >
+                <TouchableOpacity style={styles.iconBtn} onPress={() => toggleEdit(false)}>
                   <X size={18} color={T.error} />
                 </TouchableOpacity>
               </Animated.View>
@@ -391,56 +518,86 @@ export default function AccountScreen() {
           </View>
 
           <View style={styles.formCard}>
-            <AnimatedInput
-              label="Username"
-              value={username}
-              onChangeText={setUsername}
-              editable={isEditing}
-              placeholder="Enter username"
-            />
-            <AnimatedInput
-              label="Full Name"
-              value={fullName}
-              onChangeText={setFullName}
-              editable={isEditing}
-              placeholder="Enter your full name"
-            />
-            <AnimatedInput
-              label="Phone Number"
-              value={user?.phone || 'Not provided'}
-              editable={false}
-            />
+            <AnimatedInput label="Username" value={username} onChangeText={setUsername} editable={isEditing} placeholder="Enter username" />
+            <AnimatedInput label="Full Name" value={fullName} onChangeText={setFullName} editable={isEditing} placeholder="Enter your full name" />
+            <AnimatedInput label="Phone Number" value={user?.phone || 'Not provided'} editable={false} />
           </View>
         </Animated.View>
 
+        {/* ── Sound Settings ───────────────────────────────────────────────── */}
+        <Animated.View style={[styles.section, soundAnim]}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Sound Settings</Text>
+          </View>
+
+          <View style={styles.formCard}>
+            {/* Sound Effects toggle */}
+            <SoundRow
+              icon={<Volume2 size={18} color={T.terracotta} />}
+              label="Sound Effects"
+              description="Button taps, step chimes & success sounds"
+              value={sfxEnabled}
+              onToggle={toggleSFX}
+            />
+
+            <View style={soundStyles.divider} />
+
+            {/* Background Music toggle */}
+            <SoundRow
+              icon={<Music size={18} color={T.terracotta} />}
+              label="Background Music"
+              description="Ambient kitchen & cooking atmosphere"
+              value={bgEnabled}
+              onToggle={toggleBG}
+            />
+
+            {/* Volume slider — only shown when bg music is on */}
+            {bgEnabled && (
+              <View style={soundStyles.volumeBlock}>
+                <Text style={soundStyles.volumeLabel}>
+                  Background Volume — {Math.round(bgVolume * 100)}%
+                </Text>
+                <VolumeSlider
+                  value={bgVolume}
+                  onChange={(v) => setBGVolume(v)}
+                />
+              </View>
+            )}
+
+            <View style={soundStyles.divider} />
+
+            {/* Preview button */}
+            <TouchableOpacity
+              style={styles.previewBtn}
+              onPress={() => soundManager.playSFX('step_complete')}
+              activeOpacity={0.75}
+            >
+              <Music2 size={16} color={T.terracotta} />
+              <Text style={styles.previewBtnText}>Preview Sound Effects</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+        {/* ─────────────────────────────────────────────────────────────────── */}
+
         {/* Logout */}
         <Animated.View style={footerAnim}>
-          <TouchableOpacity
-            style={styles.logoutBtn}
-            onPress={handleLogout}
-            activeOpacity={0.8}
-          >
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
             <LogOut size={18} color={T.error} />
             <Text style={styles.logoutText}>Log Out</Text>
           </TouchableOpacity>
-
           <View style={styles.appInfo}>
             <Text style={styles.appVersion}>HomeChef v1.0.0</Text>
             <Text style={styles.appCopyright}>© 2024 HomeChef Cameroon</Text>
           </View>
         </Animated.View>
+
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: T.cream,
-  },
-
-  // Header
+  root: { flex: 1, backgroundColor: T.cream },
   header: {
     paddingHorizontal: 24,
     paddingTop: 8,
@@ -449,36 +606,11 @@ const styles = StyleSheet.create({
     borderBottomColor: T.sand,
     backgroundColor: T.cream,
   },
-  logoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  logoHome: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: T.charcoal,
-    letterSpacing: -0.5,
-  },
-  logoChef: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: T.terracotta,
-    letterSpacing: -0.5,
-  },
-  screenLabel: {
-    fontSize: 13,
-    color: T.muted,
-    fontWeight: '500',
-    letterSpacing: 0.3,
-  },
-
-  scroll: {
-    padding: 20,
-    paddingBottom: 48,
-  },
-
-  // Profile Card
+  logoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
+  logoHome: { fontSize: 22, fontWeight: '800', color: T.charcoal, letterSpacing: -0.5 },
+  logoChef: { fontSize: 22, fontWeight: '800', color: T.terracotta, letterSpacing: -0.5 },
+  screenLabel: { fontSize: 13, color: T.muted, fontWeight: '500', letterSpacing: 0.3 },
+  scroll: { padding: 20, paddingBottom: 48 },
   card: {
     backgroundColor: T.cardBg,
     borderRadius: 20,
@@ -492,46 +624,13 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
-  cardAccent: {
-    width: '100%',
-    height: 72,
-    backgroundColor: T.terracotta,
-    marginBottom: 0,
-  },
-  avatarRow: {
-    marginTop: -54,
-    marginBottom: 28,
-    alignItems: 'center',
-  },
-  profileName: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: T.charcoal,
-    letterSpacing: -0.3,
-    marginBottom: 4,
-  },
-  profileSub: {
-    fontSize: 13,
-    color: T.muted,
-    fontWeight: '500',
-  },
-
-  // Section
-  section: {
-    marginBottom: 20,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: T.charcoal,
-    letterSpacing: -0.2,
-  },
+  cardAccent: { width: '100%', height: 72, backgroundColor: T.terracotta },
+  avatarRow: { marginTop: -54, marginBottom: 28, alignItems: 'center' },
+  profileName: { fontSize: 20, fontWeight: '800', color: T.charcoal, letterSpacing: -0.3, marginBottom: 4 },
+  profileSub: { fontSize: 13, color: T.muted, fontWeight: '500' },
+  section: { marginBottom: 20 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  sectionTitle: { fontSize: 16, fontWeight: '800', color: T.charcoal, letterSpacing: -0.2 },
   editBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -541,15 +640,8 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
   },
-  editBtnText: {
-    color: T.terracotta,
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  editActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
+  editBtnText: { color: T.terracotta, fontWeight: '700', fontSize: 13 },
+  editActions: { flexDirection: 'row', gap: 8 },
   iconBtn: {
     width: 36,
     height: 36,
@@ -558,7 +650,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
   formCard: {
     backgroundColor: T.cardBg,
     borderRadius: 16,
@@ -569,8 +660,19 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-
-  // Logout
+  previewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 13,
+    marginTop: 8,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: T.terracotta + '50',
+    backgroundColor: '#FDF0EA',
+  },
+  previewBtnText: { fontSize: 13, fontWeight: '700', color: T.terracotta },
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -588,23 +690,8 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 1,
   },
-  logoutText: {
-    color: T.error,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-
-  appInfo: {
-    alignItems: 'center',
-    gap: 3,
-  },
-  appVersion: {
-    fontSize: 12,
-    color: T.muted,
-    fontWeight: '500',
-  },
-  appCopyright: {
-    fontSize: 11,
-    color: T.border,
-  },
+  logoutText: { color: T.error, fontSize: 15, fontWeight: '700' },
+  appInfo: { alignItems: 'center', gap: 3 },
+  appVersion: { fontSize: 12, color: T.muted, fontWeight: '500' },
+  appCopyright: { fontSize: 11, color: T.border },
 });

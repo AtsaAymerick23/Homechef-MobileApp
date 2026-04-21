@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -14,17 +15,32 @@ import { Calculator, Users, Repeat, Clock, ChefHat } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { meals } from '@/constants/meals';
 import { useCookingStore } from '@/stores/cookingStore';
+import { soundManager } from '@/lib/soundManager';
 
 export default function CookThisScreen() {
   const router = useRouter();
   const { mealId } = useLocalSearchParams();
   const { addToHistory } = useCookingStore();
-  
+
   const meal = meals.find((m) => m.id === mealId);
-  
+
   const [peopleCount, setPeopleCount] = useState('4');
   const [timesToEat, setTimesToEat] = useState('1');
   const [calculated, setCalculated] = useState(false);
+
+  // ── Animated value for results section fade-in ────────────────────────────
+  const resultsOpacity = useRef(new Animated.Value(0)).current;
+  const resultsTranslateY = useRef(new Animated.Value(24)).current;
+
+  // ── Switch to cooking ambience on mount, restore kitchen on unmount ────────
+  useEffect(() => {
+    soundManager.playBackground('cooking');
+
+    return () => {
+      // Restore kitchen ambience when navigating back to the detail screen
+      soundManager.playBackground('kitchen');
+    };
+  }, []);
 
   if (!meal) {
     return (
@@ -37,10 +53,8 @@ export default function CookThisScreen() {
   const calculateTotals = () => {
     const people = parseInt(peopleCount) || 1;
     const times = parseInt(timesToEat) || 1;
-    
     const totalCost = meal.costPerServing * people * times;
     const totalTime = (meal.prepTime + meal.cookTime) * times;
-    
     return { totalCost, totalTime, people, times };
   };
 
@@ -49,12 +63,31 @@ export default function CookThisScreen() {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
+
+    // ── Tap sound + animate results in ───────────────────────────────────────
+    soundManager.playSFX('button_tap');
     setCalculated(true);
+
+    // Slight delay so the component mounts before animating
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(resultsOpacity, {
+          toValue: 1,
+          duration: 350,
+          useNativeDriver: true,
+        }),
+        Animated.spring(resultsTranslateY, {
+          toValue: 0,
+          damping: 14,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, 50);
   };
 
   const handleConfirm = () => {
     const { totalCost, totalTime, people, times } = calculateTotals();
-    
+
     addToHistory({
       id: Date.now().toString(),
       mealId: meal.id,
@@ -67,10 +100,20 @@ export default function CookThisScreen() {
       cookedAt: new Date().toISOString(),
     });
 
+    // ── Success sound fires before the alert ─────────────────────────────────
+    soundManager.playSFX('success');
+
     Alert.alert(
-      'Success!',
+      '🎉 Success!',
       `Your cooking plan for ${meal.name} has been saved!`,
-      [{ text: 'OK', onPress: () => router.push('/(tabs)/experience') }]
+      [{
+        text: 'OK',
+        onPress: () => {
+          // Stop cooking ambience on exit
+          soundManager.stopBackground();
+          router.push('/(tabs)/experience');
+        },
+      }]
     );
   };
 
@@ -79,6 +122,7 @@ export default function CookThisScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
+
         {/* Meal Info */}
         <View style={styles.mealCard}>
           <Text style={styles.mealName}>{meal.name}</Text>
@@ -93,7 +137,7 @@ export default function CookThisScreen() {
         {/* Input Section */}
         <View style={styles.inputSection}>
           <Text style={styles.sectionTitle}>My Assistant</Text>
-          
+
           <View style={styles.inputGroup}>
             <View style={styles.inputIcon}>
               <Users size={20} color={Colors.primary} />
@@ -134,11 +178,16 @@ export default function CookThisScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Results Section */}
+        {/* Results Section — animated fade + slide in */}
         {calculated && (
-          <View style={styles.resultsSection}>
+          <Animated.View
+            style={[
+              styles.resultsSection,
+              { opacity: resultsOpacity, transform: [{ translateY: resultsTranslateY }] },
+            ]}
+          >
             <Text style={styles.resultsTitle}>Estimated Totals</Text>
-            
+
             <View style={styles.resultCard}>
               <View style={styles.resultItem}>
                 <Clock size={24} color={Colors.primary} />
@@ -169,7 +218,7 @@ export default function CookThisScreen() {
               <ChefHat size={20} color={Colors.white} />
               <Text style={styles.confirmButtonText}>Add to My Experience</Text>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -177,14 +226,8 @@ export default function CookThisScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
+  content: { flex: 1, padding: 20 },
   mealCard: {
     backgroundColor: Colors.white,
     borderRadius: 16,
@@ -196,37 +239,12 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  mealName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: Colors.dark,
-    marginBottom: 8,
-  },
-  mealDescription: {
-    fontSize: 14,
-    color: Colors.gray,
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  mealMeta: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-  },
-  mealMetaText: {
-    fontSize: 13,
-    color: Colors.primary,
-    fontWeight: '500',
-  },
-  inputSection: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: Colors.dark,
-    marginBottom: 16,
-  },
+  mealName: { fontSize: 22, fontWeight: 'bold', color: Colors.dark, marginBottom: 8 },
+  mealDescription: { fontSize: 14, color: Colors.gray, lineHeight: 20, marginBottom: 12 },
+  mealMeta: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  mealMetaText: { fontSize: 13, color: Colors.primary, fontWeight: '500' },
+  inputSection: { marginBottom: 24 },
+  sectionTitle: { fontSize: 20, fontWeight: 'bold', color: Colors.dark, marginBottom: 16 },
   inputGroup: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -249,9 +267,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 16,
   },
-  inputWrapper: {
-    flex: 1,
-  },
+  inputWrapper: { flex: 1 },
   label: {
     fontSize: 12,
     fontWeight: '600',
@@ -259,12 +275,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     textTransform: 'uppercase',
   },
-  input: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.dark,
-    padding: 0,
-  },
+  input: { fontSize: 18, fontWeight: '600', color: Colors.dark, padding: 0 },
   calculateButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -275,20 +286,9 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 8,
   },
-  calculateButtonText: {
-    color: Colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  resultsSection: {
-    marginBottom: 24,
-  },
-  resultsTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.dark,
-    marginBottom: 16,
-  },
+  calculateButtonText: { color: Colors.white, fontSize: 16, fontWeight: '600' },
+  resultsSection: { marginBottom: 24 },
+  resultsTitle: { fontSize: 18, fontWeight: 'bold', color: Colors.dark, marginBottom: 16 },
   resultCard: {
     backgroundColor: Colors.white,
     borderRadius: 16,
@@ -299,11 +299,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  resultItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
+  resultItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
   currencyIcon: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -311,30 +307,11 @@ const styles = StyleSheet.create({
     width: 40,
     textAlign: 'center',
   },
-  resultInfo: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  resultLabel: {
-    fontSize: 13,
-    color: Colors.gray,
-    marginBottom: 4,
-  },
-  resultValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: Colors.dark,
-  },
-  resultSubtext: {
-    fontSize: 12,
-    color: Colors.gray,
-    marginTop: 4,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.lightGray,
-    marginVertical: 8,
-  },
+  resultInfo: { flex: 1, marginLeft: 16 },
+  resultLabel: { fontSize: 13, color: Colors.gray, marginBottom: 4 },
+  resultValue: { fontSize: 24, fontWeight: 'bold', color: Colors.dark },
+  resultSubtext: { fontSize: 12, color: Colors.gray, marginTop: 4 },
+  divider: { height: 1, backgroundColor: Colors.lightGray, marginVertical: 8 },
   confirmButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -345,9 +322,5 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 20,
   },
-  confirmButtonText: {
-    color: Colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  confirmButtonText: { color: Colors.white, fontSize: 16, fontWeight: '600' },
 });

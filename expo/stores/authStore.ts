@@ -26,6 +26,21 @@ interface AuthState {
   loadSession: () => Promise<void>;
 }
 
+// Helper: fetch a fresh profile row from Supabase
+async function fetchProfile(userId: string): Promise<Profile | null> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+
+  if (error) {
+    console.error('fetchProfile error:', error);
+    return null;
+  }
+  return data as Profile;
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -45,16 +60,10 @@ export const useAuthStore = create<AuthState>()(
           set({ session });
 
           if (session?.user) {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-
+            const profile = await fetchProfile(session.user.id);
             set({ user: profile, isAuthenticated: true });
           }
 
-          // Sync biometric enabled state from storage
           const biometricEnabled = await BiometricAuth.isEnabled();
           set({ biometricEnabled });
         } catch (error) {
@@ -72,19 +81,12 @@ export const useAuthStore = create<AuthState>()(
 
         if (!error && data.session) {
           set({ session: data.session });
-
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', data.session.user.id)
-            .single();
-
+          const profile = await fetchProfile(data.session.user.id);
           set({ user: profile, isAuthenticated: true });
         }
 
         return { error };
       },
-
 
       signInWithBiometrics: async () => {
         const supported = await BiometricAuth.isSupported();
@@ -98,9 +100,7 @@ export const useAuthStore = create<AuthState>()(
         }
 
         const label = await BiometricAuth.getBiometricLabel();
-        const authenticated = await BiometricAuth.authenticate(
-          `Use ${label} to sign in`
-        );
+        const authenticated = await BiometricAuth.authenticate(`Use ${label} to sign in`);
 
         if (!authenticated) {
           return { error: null, cancelled: true };
@@ -114,10 +114,6 @@ export const useAuthStore = create<AuthState>()(
         return get().signIn(credentials.email, credentials.password);
       },
 
-      /**
-       * Enable biometric login for future sign-ins.
-       * Call this after a successful password sign-in.
-       */
       enableBiometrics: async (email: string, password: string) => {
         const supported = await BiometricAuth.isSupported();
         if (!supported) {
@@ -139,9 +135,6 @@ export const useAuthStore = create<AuthState>()(
         return { error: null };
       },
 
-      /**
-       * Disable biometric login and clear stored credentials.
-       */
       disableBiometrics: async () => {
         await BiometricAuth.disable();
         set({ biometricEnabled: false });
@@ -159,7 +152,7 @@ export const useAuthStore = create<AuthState>()(
         if (!error && data.user) {
           const { error: profileError } = await supabase
             .from('profiles')
-            .insert([{ id: data.user.id, username, phone }]);
+            .insert([{ id: data.user.id, username, phone: phone ?? null }]);
 
           if (profileError) {
             return { error: profileError };
@@ -172,23 +165,29 @@ export const useAuthStore = create<AuthState>()(
       signOut: async () => {
         await supabase.auth.signOut();
         set({ user: null, session: null, isAuthenticated: false });
-        // Note: biometricEnabled stays true so user can re-login with biometrics
       },
 
       updateProfile: async (updates) => {
-        const { user } = get();
+        const { user, session } = get();
         if (!user) return { error: new Error('No user logged in') };
 
-        const { error } = await supabase
+        // Use .select() so Supabase actually executes the update and returns
+        // the mutated row — without it some RLS configs silently no-op.
+        const { data, error } = await supabase
           .from('profiles')
           .update(updates)
-          .eq('id', user.id);
+          .eq('id', user.id)
+          .select()
+          .single();
 
-        if (!error) {
-          set({ user: { ...user, ...updates } });
+        if (error) {
+          console.error('updateProfile error:', error);
+          return { error };
         }
 
-        return { error };
+        // Prefer the server-returned row so local state stays in sync
+        set({ user: data as Profile });
+        return { error: null };
       },
     }),
     {

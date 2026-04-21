@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Stack, useRouter, useSegments, useRootNavigationState, Slot } from 'expo-router';
+import { Stack, useRouter, useSegments, useRootNavigationState } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import { useAuthStore } from '@/stores/authStore';
 import { Colors } from '@/constants/colors';
+import { soundManager } from '@/lib/soundManager';
+import { useSoundStore } from '@/stores/soundStore';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -18,7 +20,7 @@ function RootLayoutNav() {
   const segments = useSegments();
   const navigationState = useRootNavigationState();
   const [isMounted, setIsMounted] = useState(false);
-  
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -27,13 +29,35 @@ function RootLayoutNav() {
     loadSession();
   }, []);
 
+  // ─── Sound Initialization ─────────────────────────────────────────────────
+  useEffect(() => {
+    const { sfxEnabled, bgEnabled, bgVolume } = useSoundStore.getState();
+
+    soundManager.init().then(() => {
+      soundManager.setSFXEnabled(sfxEnabled);
+      soundManager.setBGEnabled(bgEnabled);
+      soundManager.setBackgroundVolume(bgVolume);
+
+      // Start kitchen ambience as soon as the app is ready
+      if (bgEnabled) {
+        soundManager.playBackground('kitchen');
+      }
+    });
+
+    // Clean up all audio when the root unmounts (app closed)
+    return () => {
+      soundManager.stopBackground();
+    };
+  }, []);
+  // ─────────────────────────────────────────────────────────────────────────
+
   useEffect(() => {
     if (!isMounted || !navigationState?.key) return;
-    
+
     if (!isLoading) {
       SplashScreen.hideAsync();
       const inAuthGroup = segments[0] === '(auth)';
-      
+
       if (isAuthenticated && inAuthGroup) {
         router.replace('/(tabs)');
       } else if (!isAuthenticated && !inAuthGroup) {
@@ -50,30 +74,30 @@ function RootLayoutNav() {
     <Stack screenOptions={{ headerBackTitle: 'Back' }}>
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen 
-        name="meal/[id]" 
-        options={{ 
+      <Stack.Screen
+        name="meal/[id]"
+        options={{
           headerShown: false,
-          presentation: 'card'
-        }} 
+          presentation: 'card',
+        }}
       />
-      <Stack.Screen 
-        name="meal/cook" 
-        options={{ 
+      <Stack.Screen
+        name="meal/cook"
+        options={{
           headerShown: true,
           title: 'Cook This',
           headerStyle: { backgroundColor: Colors.background },
           headerTintColor: Colors.primary,
-        }} 
+        }}
       />
-      <Stack.Screen 
-        name="recipe/new" 
-        options={{ 
+      <Stack.Screen
+        name="recipe/new"
+        options={{
           headerShown: true,
           title: 'New Recipe',
           headerStyle: { backgroundColor: Colors.background },
           headerTintColor: Colors.primary,
-        }} 
+        }}
       />
     </Stack>
   );
