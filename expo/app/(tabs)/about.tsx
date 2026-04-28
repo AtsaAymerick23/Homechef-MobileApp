@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Animated,
   Dimensions,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Users, ChefHat, Globe, BookOpen, Flame, Leaf } from 'lucide-react-native';
@@ -231,10 +232,22 @@ export default function AboutScreen() {
             <>
               {/* Hero banner */}
               <View style={styles.cuisineHero}>
+                <Image
+                  source={require('@/assets/images/icon.png')}
+                  style={styles.cuisineHeroLogo}
+                  resizeMode="contain"
+                />
                 <Text style={styles.cuisineHeroTitle}>Cameroonian Cuisine</Text>
                 <Text style={styles.cuisineHeroSub}>
                   Africa in Miniature — on your plate
                 </Text>
+                <TouchableOpacity
+                  style={styles.learnMoreButton}
+                  onPress={() => Linking.openURL('https://homechef-repo-rouge.vercel.app/')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.learnMoreText}>Learn More</Text>
+                </TouchableOpacity>
               </View>
 
               {/* Stats row */}
@@ -267,7 +280,7 @@ export default function AboutScreen() {
                   [ 'Groundnuts', 'Used extensively in sauces and stews'],
                   [ 'Palm Oil', 'Foundational cooking fat across most of the country'],
                   [ 'Maize', 'Used in porridges and fermented beverages'],
-                ].map(([name, desc]) => (
+                ].map(([ name, desc]) => (
                   <View key={name} style={styles.stapleRow}>
                     <View>
                       <Text style={styles.stapleName}>{name}</Text>
@@ -547,6 +560,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
+  cuisineHeroLogo: {
+    width: 80,
+    height: 80,
+    marginBottom: 10,
+    borderRadius: 16,
+  },
   cuisineHeroEmoji: { fontSize: 40, marginBottom: 8 },
   cuisineHeroTitle: {
     fontSize: 22,
@@ -560,6 +579,19 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.7)',
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  learnMoreButton: {
+    marginTop: 16,
+    backgroundColor: Colors.accent ?? '#c0622a',
+    paddingHorizontal: 28,
+    paddingVertical: 11,
+    borderRadius: 25,
+  },
+  learnMoreText: {
+    color: Colors.white,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.4,
   },
 
   // Stats row

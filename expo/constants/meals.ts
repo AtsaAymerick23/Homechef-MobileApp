@@ -63,7 +63,7 @@ export const meals: Meal[] = [
     prepTime: 30,
     cookTime: 45,
     servings: 4,
-    costPerServing: 500,
+    costPerServing: 1500,
     category: 'Main Course',
     ingredients: [
       '500g bitterleaf (ndolé), washed and drained',
@@ -319,7 +319,8 @@ instructions: [
       'Simmer until thick consistency',
       'Serve hot'
     ]
-  }
+  },
+  
 ];
 
 export const events: Event[] = [

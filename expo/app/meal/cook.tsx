@@ -61,7 +61,7 @@ export default function CookThisScreen() {
     const people = parseInt(peopleCount) || 1;
     const times = parseInt(timesToEat) || 1;
     const totalCost = meal.costPerServing * people * times;
-    const totalTime = (meal.prepTime + meal.cookTime) * times;
+    const totalTime = (meal.prepTime + meal.cookTime) ;
     const totalCostEUR = totalCost * FCFA_TO_EUR;
     const totalCostUSD = totalCost * FCFA_TO_USD;
     return { totalCost, totalTime, people, times, totalCostEUR, totalCostUSD };

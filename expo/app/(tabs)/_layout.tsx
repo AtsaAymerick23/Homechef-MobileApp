@@ -21,8 +21,8 @@ const TABS = [
   { name: 'recipes',   label: 'Recipes',    Icon: BookOpen  },
   { name: 'events',    label: 'Events',     Icon: Calendar  },
   { name: 'experience',label: 'Experience', Icon: History   },
-  { name: 'account',   label: 'Account',    Icon: User      },
-  { name: 'about',     label: 'About',      Icon: Info      }
+  { name: 'about',     label: 'About',      Icon: Info      },
+  { name: 'account',   label: 'Account',    Icon: User      }
 ];
 
 const TAB_COUNT   = TABS.length;
@@ -221,8 +221,9 @@ export default function TabLayout() {
       <Tabs.Screen name="recipes"    options={{ title: 'Recipes'    }} />
       <Tabs.Screen name="events"     options={{ title: 'Events'     }} />
       <Tabs.Screen name="experience" options={{ title: 'Experience' }} />
-      <Tabs.Screen name="account"    options={{ title: 'Account'    }} />
       <Tabs.Screen name="about"      options={{ title: 'About' }} />
+      <Tabs.Screen name="account"    options={{ title: 'Account'    }} />
+
     </Tabs>
   );
 }

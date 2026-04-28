@@ -21,12 +21,12 @@ import {
   MapPin,
   Flame,
   Play,
-  Pause,
   Star,
   Heart,
 } from 'lucide-react-native';
 import { Accelerometer } from 'expo-sensors';
 import YoutubeIframe from 'react-native-youtube-iframe';
+import LottieView from 'lottie-react-native';
 import { Colors } from '@/constants/colors';
 import { meals, type Meal } from '@/constants/meals';
 import { soundManager } from '@/lib/soundManager';
@@ -103,6 +103,11 @@ function WrittenRecipe({ meal }: { meal: Meal }) {
   const currentStepRef = useRef(currentStep);
   const lastShakeRef = useRef(lastShake);
 
+  // ── Lottie ref for step-advance feedback (animation.json) ─────────────────
+  const stepLottieRef = useRef<LottieView>(null);
+  // Track whether the Lottie overlay is visible
+  const [showStepLottie, setShowStepLottie] = useState(false);
+
   useEffect(() => { currentStepRef.current = currentStep; }, [currentStep]);
   useEffect(() => { lastShakeRef.current = lastShake; }, [lastShake]);
 
@@ -110,8 +115,12 @@ function WrittenRecipe({ meal }: { meal: Meal }) {
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const animateStep = useCallback((next: number) => {
-    // ── Play step sound on every step change ──────────────────────────────────
     soundManager.playSFX('step_complete');
+
+    // ── Show the Lottie burst then hide it after one play (~1 s) ─────────────
+    setShowStepLottie(true);
+    stepLottieRef.current?.play();
+    setTimeout(() => setShowStepLottie(false), 1000);
 
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 0, duration: 120, useNativeDriver: true }),
@@ -188,14 +197,31 @@ function WrittenRecipe({ meal }: { meal: Meal }) {
         />
       </View>
 
-      <Animated.View
-        style={[recipeStyles.stepCard, { opacity: fadeAnim, transform: [{ translateX: slideAnim }] }]}
-      >
-        <View style={recipeStyles.stepBadge}>
-          <Text style={recipeStyles.stepBadgeText}>Step {currentStep + 1}</Text>
-        </View>
-        <Text style={recipeStyles.stepText}>{meal.instructions[currentStep]}</Text>
-      </Animated.View>
+      {/* Step card — Lottie overlays it briefly on each advance */}
+      <View style={recipeStyles.stepCardWrapper}>
+        <Animated.View
+          style={[recipeStyles.stepCard, { opacity: fadeAnim, transform: [{ translateX: slideAnim }] }]}
+        >
+          <View style={recipeStyles.stepBadge}>
+            <Text style={recipeStyles.stepBadgeText}>Step {currentStep + 1}</Text>
+          </View>
+          <Text style={recipeStyles.stepText}>{meal.instructions[currentStep]}</Text>
+        </Animated.View>
+
+        {/* ── Lottie 2: animation.json — step-advance feedback ──────────────
+              Renders on top of the step card, centered, plays once per step
+              advance then disappears. pointerEvents="none" keeps the card
+              tappable underneath.                                            */}
+        {showStepLottie && (
+          <LottieView
+            ref={stepLottieRef}
+            source={require('@/assets/lottie/animation.json')}
+            autoPlay
+            loop={false}
+            style={recipeStyles.stepLottie}
+          />
+        )}
+      </View>
 
       <View style={recipeStyles.navRow}>
         <TouchableOpacity
@@ -277,11 +303,16 @@ const recipeStyles = StyleSheet.create({
     overflow: 'hidden',
   },
   progressFill: { height: '100%', backgroundColor: Colors.primary, borderRadius: 10 },
+
+  // ── Wrapper gives the Lottie a positioned anchor over the step card ───────
+  stepCardWrapper: {
+    position: 'relative',
+    marginBottom: 16,
+  },
   stepCard: {
     backgroundColor: Colors.white,
     borderRadius: 16,
     padding: 20,
-    marginBottom: 16,
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
@@ -290,6 +321,17 @@ const recipeStyles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: Colors.primary,
   },
+
+  // ── Lottie: step-advance feedback, centered over the step card ────────────
+  stepLottie: {
+    position: 'absolute',
+    alignSelf: 'center',
+    top: '50%',
+    width: 120,
+    height: 120,
+    marginTop: -60, // half of height to truly center vertically
+  },
+
   stepBadge: {
     alignSelf: 'flex-start',
     backgroundColor: Colors.primary + '18',
@@ -354,7 +396,6 @@ function VideoRecipe({ meal }: { meal: Meal }) {
   }, []);
 
   const handleTogglePlay = () => {
-    // ── Tap sound on play/pause ───────────────────────────────────────────────
     soundManager.playSFX('button_tap');
     setPlaying((prev) => !prev);
   };
@@ -372,8 +413,6 @@ function VideoRecipe({ meal }: { meal: Meal }) {
           webViewProps={{ allowsFullscreenVideo: true, allowsInlineMediaPlayback: true }}
         />
       </View>
-
-
 
       <View style={videoStyles.infoCard}>
         <View style={videoStyles.infoHeader}>
@@ -459,15 +498,15 @@ export default function MealDetailScreen() {
   const cookBtnScale = useRef(new Animated.Value(1)).current;
   const tabIndicatorX = useRef(new Animated.Value(0)).current;
 
+  // ── Lottie ref for cook button (cooking.json) ─────────────────────────────
+  const cookLottieRef = useRef<LottieView>(null);
+  const [showCookLottie, setShowCookLottie] = useState(false);
+
   const meal = meals.find((m) => m.id === id);
 
-  // ── Background audio: kitchen ambience while browsing the recipe ─────────────
   useEffect(() => {
     soundManager.playBackground('kitchen');
-    // Stop background when leaving this screen
-    return () => {
-      soundManager.stopBackground();
-    };
+    return () => { soundManager.stopBackground(); };
   }, []);
 
   const heroTranslate = scrollY.interpolate({
@@ -477,7 +516,6 @@ export default function MealDetailScreen() {
   });
 
   const handleLike = () => {
-    // ── Tap + visual pop ──────────────────────────────────────────────────────
     soundManager.playSFX('button_tap');
     setLiked((v) => !v);
     Animated.sequence([
@@ -487,18 +525,26 @@ export default function MealDetailScreen() {
   };
 
   const handleCook = () => {
-    // ── Cooking start sound fires before navigating ───────────────────────────
     soundManager.playSFX('cooking_start');
+
+    // ── Lottie 1: cooking.json plays once on the button, then navigates ──────
+    setShowCookLottie(true);
+    cookLottieRef.current?.play();
+
     Animated.sequence([
       Animated.timing(cookBtnScale, { toValue: 0.95, duration: 100, useNativeDriver: true }),
       Animated.spring(cookBtnScale, { toValue: 1, damping: 10, useNativeDriver: true }),
-    ]).start(() =>
-      router.push({ pathname: '/meal/cook', params: { mealId: meal?.id } })
-    );
+    ]).start(() => {
+      // Navigate after the button spring settles (~400 ms).
+      // The Lottie plays concurrently; we hide it after navigation.
+      setTimeout(() => {
+        setShowCookLottie(false);
+        router.push({ pathname: '/meal/cook', params: { mealId: meal?.id } });
+      }, 600);
+    });
   };
 
   const switchTab = (tab: 'written' | 'video') => {
-    // ── Tab tap sound ─────────────────────────────────────────────────────────
     soundManager.playSFX('button_tap');
     setActiveTab(tab);
     Animated.spring(tabIndicatorX, {
@@ -508,10 +554,19 @@ export default function MealDetailScreen() {
     }).start();
   };
 
+  // ── Lottie 3: loading.json shown while meal data is absent ────────────────
   if (!meal) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text style={{ color: Colors.dark, padding: 20 }}>Meal not found</Text>
+        <View style={styles.loadingFallback}>
+          <LottieView
+            source={require('@/assets/lottie/loading.json')}
+            autoPlay
+            loop
+            style={styles.loadingLottie}
+          />
+          <Text style={styles.loadingText}>Looking for that meal…</Text>
+        </View>
       </SafeAreaView>
     );
   }
@@ -646,12 +701,28 @@ export default function MealDetailScreen() {
 
         {/* Cook button */}
         <View style={styles.cookSection}>
-          <Animated.View style={{ transform: [{ scale: cookBtnScale }] }}>
-            <TouchableOpacity style={styles.cookBtn} onPress={handleCook} activeOpacity={1}>
-              <ChefHat size={22} color={Colors.white} />
-              <Text style={styles.cookBtnText}>Cook This Meal</Text>
-            </TouchableOpacity>
-          </Animated.View>
+          {/* ── Lottie 1: cooking.json overlays the cook button on tap ────────
+                Positioned absolutely over the button, centered, plays once
+                then the screen navigates away. pointerEvents="none" keeps
+                the button pressable underneath while it plays.              */}
+          <View style={styles.cookBtnWrapper}>
+            <Animated.View style={{ transform: [{ scale: cookBtnScale }] }}>
+              <TouchableOpacity style={styles.cookBtn} onPress={handleCook} activeOpacity={1}>
+                <ChefHat size={22} color={Colors.white} />
+                <Text style={styles.cookBtnText}>Cook This Meal</Text>
+              </TouchableOpacity>
+            </Animated.View>
+
+            {showCookLottie && (
+              <LottieView
+                ref={cookLottieRef}
+                source={require('@/assets/lottie/cooking.json')}
+                autoPlay
+                loop={false}
+                style={styles.cookLottie}
+              />
+            )}
+          </View>
         </View>
       </Animated.ScrollView>
     </View>
@@ -660,6 +731,24 @@ export default function MealDetailScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F7F3EE' },
+
+  // ── Lottie: loading fallback (replaces plain text "Meal not found") ────────
+  loadingFallback: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  loadingLottie: {
+    width: 160,
+    height: 160,
+  },
+  loadingText: {
+    fontSize: 15,
+    color: Colors.gray,
+    fontWeight: '600',
+  },
+
   stickyHeader: {
     position: 'absolute',
     top: 0,
@@ -775,6 +864,11 @@ const styles = StyleSheet.create({
   tabTextActive: { color: Colors.white },
   tabContent: { marginBottom: 4 },
   cookSection: { paddingHorizontal: 16, paddingVertical: 24 },
+
+  // ── Cook button wrapper gives the Lottie an anchor to position against ─────
+  cookBtnWrapper: {
+    position: 'relative',
+  },
   cookBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -790,4 +884,14 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   cookBtnText: { color: Colors.white, fontSize: 16, fontWeight: '800', letterSpacing: 0.3 },
+
+  // ── Lottie: cooking.json centered over the cook button ────────────────────
+  cookLottie: {
+    position: 'absolute',
+    alignSelf: 'center',
+    top: '50%',
+    width: 100,
+    height: 100,
+    marginTop: -50,
+  },
 });
