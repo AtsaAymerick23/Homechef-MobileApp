@@ -2,7 +2,7 @@
 
 "Bringing Cameroon's most refined meals to your kitchen."
 
-HomeChef is a React Native mobile application that celebrates and showcases the rich culinary heritage of Cameroon — helping users discover, prepare, and enjoy authentic Cameroonian dishes from the comfort of their own home.
+HomeChef is a mobile application that celebrates and showcases the rich culinary heritage of Cameroon — helping users discover, prepare, and enjoy authentic Cameroonian dishes from the comfort of their own home.
 
 Features
 
@@ -18,7 +18,6 @@ TechnologyRoleReact NativeCross-platform mobile frameworkExpoDevelopment toolcha
 Project Structure
 Homechef-MobileApp/
 ├── expo/              # Main Expo/React Native application
-├── rork.json          # Rork project configuration
 ├── package-lock.json  # Dependency lock file
 └── .gitignore
 
