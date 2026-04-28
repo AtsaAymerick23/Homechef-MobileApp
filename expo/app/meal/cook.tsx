@@ -17,6 +17,13 @@ import { meals } from '@/constants/meals';
 import { useCookingStore } from '@/stores/cookingStore';
 import { soundManager } from '@/lib/soundManager';
 
+// ── Exchange rates (FCFA is pegged to EUR; USD rate as of Apr 2026) ──────────
+const FCFA_TO_EUR = 1 / 655.957; // fixed peg
+const FCFA_TO_USD = 0.001797;    // ~556 FCFA per USD
+
+const formatCurrency = (amount: number, decimals = 2) =>
+  amount.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+
 export default function CookThisScreen() {
   const router = useRouter();
   const { mealId } = useLocalSearchParams();
@@ -55,7 +62,9 @@ export default function CookThisScreen() {
     const times = parseInt(timesToEat) || 1;
     const totalCost = meal.costPerServing * people * times;
     const totalTime = (meal.prepTime + meal.cookTime) * times;
-    return { totalCost, totalTime, people, times };
+    const totalCostEUR = totalCost * FCFA_TO_EUR;
+    const totalCostUSD = totalCost * FCFA_TO_USD;
+    return { totalCost, totalTime, people, times, totalCostEUR, totalCostUSD };
   };
 
   const handleCalculate = () => {
@@ -117,7 +126,7 @@ export default function CookThisScreen() {
     );
   };
 
-  const { totalCost, totalTime } = calculateTotals();
+  const { totalCost, totalTime, totalCostEUR, totalCostUSD } = calculateTotals();
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -189,6 +198,8 @@ export default function CookThisScreen() {
             <Text style={styles.resultsTitle}>Estimated Totals</Text>
 
             <View style={styles.resultCard}>
+
+              {/* Time */}
               <View style={styles.resultItem}>
                 <Clock size={24} color={Colors.primary} />
                 <View style={styles.resultInfo}>
@@ -202,6 +213,7 @@ export default function CookThisScreen() {
 
               <View style={styles.divider} />
 
+              {/* Cost in FCFA */}
               <View style={styles.resultItem}>
                 <Text style={styles.currencyIcon}>₣</Text>
                 <View style={styles.resultInfo}>
@@ -212,6 +224,37 @@ export default function CookThisScreen() {
                   </Text>
                 </View>
               </View>
+
+              <View style={styles.divider} />
+
+              {/* Currency conversions row */}
+              <View style={styles.conversionRow}>
+                {/* EUR */}
+                <View style={styles.conversionItem}>
+                  <Text style={styles.conversionFlag}>🇪🇺</Text>
+                  <Text style={styles.conversionLabel}>Euros</Text>
+                  <Text style={styles.conversionValue}>
+                    €{formatCurrency(totalCostEUR)}
+                  </Text>
+                </View>
+
+                <View style={styles.conversionDivider} />
+
+                {/* USD */}
+                <View style={styles.conversionItem}>
+                  <Text style={styles.conversionFlag}>🇺🇸</Text>
+                  <Text style={styles.conversionLabel}>US Dollars</Text>
+                  <Text style={styles.conversionValue}>
+                    ${formatCurrency(totalCostUSD)}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Rate note */}
+              <Text style={styles.rateNote}>
+                Rates: 1 EUR = 655.96 FCFA (fixed) · 1 USD ≈ 556 FCFA
+              </Text>
+
             </View>
 
             <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
@@ -312,6 +355,46 @@ const styles = StyleSheet.create({
   resultValue: { fontSize: 24, fontWeight: 'bold', color: Colors.dark },
   resultSubtext: { fontSize: 12, color: Colors.gray, marginTop: 4 },
   divider: { height: 1, backgroundColor: Colors.lightGray, marginVertical: 8 },
+
+  // ── Currency conversion row ───────────────────────────────────────────────
+  conversionRow: {
+    flexDirection: 'row',
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  conversionItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+  },
+  conversionFlag: {
+    fontSize: 24,
+  },
+  conversionLabel: {
+    fontSize: 12,
+    color: Colors.gray,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  conversionValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: Colors.dark,
+  },
+  conversionDivider: {
+    width: 1,
+    height: 56,
+    backgroundColor: Colors.lightGray,
+    marginHorizontal: 8,
+  },
+  rateNote: {
+    fontSize: 11,
+    color: Colors.gray,
+    textAlign: 'center',
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+
   confirmButton: {
     flexDirection: 'row',
     alignItems: 'center',

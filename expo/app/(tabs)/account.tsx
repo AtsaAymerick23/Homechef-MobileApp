@@ -26,9 +26,9 @@ import { soundManager } from '@/lib/soundManager';
 const T = {
   cream: '#FAF7F2',
   sand: '#EDE8DF',
-  terracotta: '#C4622D',
-  terracottaLight: '#E8845A',
-  charcoal: '#2B2420',
+  terracotta: '#ebba25',
+  terracottaLight: '#E8845A',  // ← comma was missing here in your local file
+  charcoal: '#9b3716',
   muted: '#8C7B72',
   white: '#FFFFFF',
   error: '#C0392B',
@@ -98,7 +98,7 @@ function AnimatedInput({
 
   const interpolatedBorder = borderColor.interpolate({
     inputRange: [0, 1],
-    outputRange: [T.border, T.terracotta],
+    outputRange: [T.border, T.charcoal],
   });
 
   return (
@@ -231,7 +231,7 @@ const avatarStyles = StyleSheet.create({
     position: 'absolute',
     bottom: 2,
     right: 2,
-    backgroundColor: T.terracotta,
+    backgroundColor: T.charcoal,  // ← comma was missing here in your local file
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -328,7 +328,7 @@ const sliderStyles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: T.terracotta,
+    backgroundColor: T.charcoal,
     borderRadius: 3,
   },
   step: {
@@ -346,7 +346,7 @@ const sliderStyles = StyleSheet.create({
     borderColor: T.white,
   },
   dotActive: {
-    backgroundColor: T.terracotta,
+    backgroundColor: T.charcoal,
   },
 });
 
@@ -386,7 +386,7 @@ function SoundRow({
         value={value}
         onValueChange={handleToggle}
         trackColor={{ false: T.border, true: T.terracottaLight }}
-        thumbColor={value ? T.terracotta : T.sand}
+        thumbColor={value ? T.charcoal : T.sand}
         ios_backgroundColor={T.border}
       />
     </Animated.View>
@@ -431,7 +431,7 @@ export default function AccountScreen() {
   const headerAnim  = useMountAnimation(0);
   const cardAnim    = useMountAnimation(120);
   const formAnim    = useMountAnimation(220);
-  const soundAnim   = useMountAnimation(300);   // ← new sound section
+  const soundAnim   = useMountAnimation(300);
   const footerAnim  = useMountAnimation(380);
 
   const editSlide = useRef(new Animated.Value(0)).current;
@@ -572,7 +572,7 @@ export default function AccountScreen() {
               onPress={() => soundManager.playSFX('step_complete')}
               activeOpacity={0.75}
             >
-              <Music2 size={16} color={T.terracotta} />
+              <Music2 size={16} color={T.charcoal} />
               <Text style={styles.previewBtnText}>Preview Sound Effects</Text>
             </TouchableOpacity>
           </View>
@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
-  cardAccent: { width: '100%', height: 72, backgroundColor: T.terracotta },
+  cardAccent: { width: '100%', height: 72, backgroundColor: T.charcoal },
   avatarRow: { marginTop: -54, marginBottom: 28, alignItems: 'center' },
   profileName: { fontSize: 20, fontWeight: '800', color: T.charcoal, letterSpacing: -0.3, marginBottom: 4 },
   profileSub: { fontSize: 13, color: T.muted, fontWeight: '500' },
@@ -669,7 +669,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: T.terracotta + '50',
+    borderColor: T.charcoal + '50',
     backgroundColor: '#FDF0EA',
   },
   previewBtnText: { fontSize: 13, fontWeight: '700', color: T.terracotta },

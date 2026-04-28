@@ -63,7 +63,7 @@ export const meals: Meal[] = [
     prepTime: 30,
     cookTime: 45,
     servings: 4,
-    costPerServing: 2500,
+    costPerServing: 500,
     category: 'Main Course',
     ingredients: [
       '500g bitterleaf (ndolé), washed and drained',
@@ -235,23 +235,23 @@ export const meals: Meal[] = [
     costPerServing: 800,
     category: 'Main Course',
     ingredients: [
-      '2 cups dried corn',
-      '1 cup black beans',
-      '1/2 cup palm oil',
-      '1 onion, chopped',
-      'Salt to taste',
-      'Pepper (optional)'
-    ],
-    instructions: [
-      'Soak corn and beans overnight separately',
-      'Boil corn until half cooked',
-      'Add beans and continue cooking',
-      'When soft, mash together lightly',
-      'Fry onions in palm oil',
-      'Mix oil and onions into corn-bean mixture',
-      'Season with salt and pepper',
-      'Serve warm with vegetables'
-    ]
+  '2 cups fresh corn kernels or soft fresh maize',
+  '2 cups pounded cassava leaves or finely chopped cassava leaves',
+  '1/2 cup palm oil',
+  '2 to 3 cups water, as needed',
+  'Salt to taste',
+  'Optional: sugar, if you like the lightly sweet version some people make'
+],
+instructions: [
+  'Wash the cassava leaves well and pound or chop them finely until soft.',
+  'Put the leaves in a pot with water and cook until they begin to soften.',
+  'Add the fresh corn and continue cooking until both the corn and leaves are tender.',
+  'Heat the palm oil in a small pan and sauté the onion until fragrant.',
+  'Pourthe palm oil into the pot and stir well.',
+  'Season with salt,a little sugar if desired.',
+  'Let it simmer until it becomes a thick, soft porridge-like dish.',
+  'Serve hot with boiled plantains, yams, or fufu.' 
+]
   },
   {
     id: '7',
